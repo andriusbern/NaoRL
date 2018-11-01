@@ -2,6 +2,9 @@ env/
 build/
 nao_rl.egg-info/
 dist/
+.vscode/
+
+# .gitignore
 
 # Formats
 *.pyc
