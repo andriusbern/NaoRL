@@ -94,7 +94,7 @@ class NaoWalking(VrepEnv):
         self.agent.naoqi_vrep_sync()
         self._make_observation()
         # Reward function
-        reward = 1
+        reward = .2
         for i in range(2):
             reward += abs(self.position[i] - self.initial_position[i]) * 10000000
         

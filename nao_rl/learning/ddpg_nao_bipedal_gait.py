@@ -49,7 +49,7 @@ if __name__ == "__main__":
     actor.add(Dense(96))
     actor.add(Activation('relu'))
     actor.add(Dense(nb_actions))
-    actor.add(Activation('linear'))
+    actor.add(Activation('tanh'))
     print(actor.summary())
 
     # Critic model
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
 
     # Train
-    h = agent.fit(env, nb_steps=200, visualize=False, verbose=2, nb_max_episode_steps=200)
+    h = agent.fit(env, nb_steps=20000, visualize=False, verbose=2, nb_max_episode_steps=200)
     file = settings.TRAINED_MODELS + '/ddpg_{}_weights.h5f'.format(ENV_NAME)
     agent.save_weights(file, overwrite=True)
     env.stop_simulation()

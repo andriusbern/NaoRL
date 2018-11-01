@@ -9,3 +9,4 @@ dist/
 # Formats
 *.pyc
 *.txt
+*.h5f

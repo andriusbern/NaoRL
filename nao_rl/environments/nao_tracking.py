@@ -96,7 +96,7 @@ class NaoTracking(VrepEnv):
 
         # Update velocities
         for i in range(len(self.velocities)):
-            self.velocities[i] += action[i] * 1000
+            self.velocities[i] += action[i] / 1000
             if self.velocities[i] < self.velocity_bounds[0]: self.velocities[i] = self.velocity_bounds[0]
             if self.velocities[i] > self.velocity_bounds[1]: self.velocities[i] = self.velocity_bounds[1]
 

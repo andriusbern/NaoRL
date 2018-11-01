@@ -47,7 +47,7 @@ if __name__ == "__main__":
     actor.add(Dense(16))
     actor.add(Activation('relu'))
     actor.add(Dense(nb_actions))
-    actor.add(Activation('linear'))
+    actor.add(Activation('tanh'))
     print(actor.summary())
 
     # Critic model
@@ -71,11 +71,11 @@ if __name__ == "__main__":
 
     # Compile the agent
     memory = SequentialMemory(limit=100000, window_length=1)
-    random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
+    random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.45, mu=0., sigma=.3)
     agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
                     memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
                     random_process=random_process, gamma=.9999, target_model_update=1e-3)
-    agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
+    agent.compile(Adam(lr=.0001, clipnorm=1.), metrics=['mae'])
 
     # Train
     agent.fit(env, nb_steps=50000, visualize=False, verbose=2, nb_max_episode_steps=200)
