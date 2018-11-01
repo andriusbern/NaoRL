@@ -1,0 +1,8 @@
+env/
+build/
+nao_rl.egg-info/
+dist/
+
+# Formats
+*.pyc
+*.txt
