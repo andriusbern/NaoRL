@@ -75,7 +75,7 @@ if __name__ == "__main__":
     agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
                     memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
                     random_process=random_process, gamma=.99, target_model_update=1e-3)
-    agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
+    agent.compile(Adam(lr=.0001, clipnorm=1.), metrics=['mae'])
 
     # Train
     h = agent.fit(env, nb_steps=20000, visualize=False, verbose=2, nb_max_episode_steps=200)

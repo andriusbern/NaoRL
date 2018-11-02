@@ -17,19 +17,19 @@ def build_actor(env, hidden_layer_sizes, activation='relu'):
 
     actor = Sequential()
     # Input layer
-    actor.add(Flatten(input_shape=(1,) + env.observation_space))
+    actor.add(Flatten(input_shape=(1,) + env.observation_space.shape))
     # Create hidden layers
     for size in hidden_layer_sizes:
         actor.add(Dense(size))
         actor.add(Activation(activation))
     # Output layer
     actor.add(Dense(env.action_space.shape[0]))
-    actor.add(Activation('linear'))
+    actor.add(Activation('tanh'))
 
     return actor
 
 def build_critic(env, hidden_layer_sizes, activation='relu'):
-    action_input = Input(shape=(env.action_space.shape[0]), name='action_input')
+    action_input = Input(shape=(env.action_space.shape[0],), name='action_input')
     observation_input = Input(shape=(1,) + env.observation_space.shape, name='observation_input')
 
     flattened_observation = Flatten()(observation_input)

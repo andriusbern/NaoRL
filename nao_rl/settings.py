@@ -9,6 +9,7 @@ TRAINED_MODELS = MAIN_DIR + '/trained_models'
 # Addresses and ports
 NAO_PORT = 5995
 SIM_PORT = 19998
-
 LOCAL_IP = '127.0.0.1'
-NAO_IP = ''
+
+RNAO_IP = ''
+RNAO_PORT = ''

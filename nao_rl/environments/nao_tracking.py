@@ -118,8 +118,8 @@ class NaoTracking(VrepEnv):
         reward = 1. - np.sqrt((0.5 - center_x)**2 + (0.5 - center_y)**2)
         if center_x > .8 or center_x < .2 or center_y < 0.2 or center_y > .8:
             reward = 0
-        if self.done:
-            reward = -1/self.steps * 200
+        #if self.done:
+            #reward = -1/self.steps * 200
 
         return np.array(self.state), reward, self.done, {}
 
