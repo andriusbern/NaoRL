@@ -11,7 +11,7 @@ import cv2 as cv
 # Local imports
 
 from nao_rl.environments import VrepEnv
-from nao_rl.utils import VirtualNAO, NAO
+from nao_rl.utils import VirtualNAO, RealNAO
 from nao_rl.utils import Ball
 from nao_rl.utils import image_processing
 
@@ -32,9 +32,12 @@ class NaoTracking(VrepEnv):
         # Objects
         self.ball  = Ball('Sphere1')
         self.agent = VirtualNAO(address, naoqi_port)
+        self.real = RealNAO('192.168.1.175', 9559)
+
 
         # Connect to environment
         self.agent.initialize()
+        
 
         # Action and state spaces
         self.velocities = [0, 0]
@@ -101,6 +104,7 @@ class NaoTracking(VrepEnv):
             if self.velocities[i] > self.velocity_bounds[1]: self.velocities[i] = self.velocity_bounds[1]
 
         self.agent.move_joints(joints, self.velocities)
+        self.real.move_joints(joints, self.velocities)
 
     def step(self, action):
         """
@@ -143,6 +147,7 @@ class NaoTracking(VrepEnv):
         # Reinitialize
         # self.agent.initialize()
         self.agent.set_joints(self.agent.limbs["Head"], [0, 0], 1)
+        self.real.set_joints(self.agent.limbs["Head"], [0,0], 0.5)
         time.sleep(.2)
         self.agent.naoqi_vrep_sync()
         self.ball.restart()

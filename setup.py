@@ -79,7 +79,8 @@ packages = ['numpy',
             'gym',
             'keras-rl',
             'opencv-python',
-            'Pillow']
+            'Pillow',
+            'matplotlib']
 
 print separator, separator
 print "Paths added successfully..."

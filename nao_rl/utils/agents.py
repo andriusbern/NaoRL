@@ -116,10 +116,10 @@ class RealNAO(NAO):
         self.cameraProxy = ALProxy('ALVideoDevice', self.ip, self.port)
         self.video_client = None
 
-    def connect_vision(self):
+    def connect_vision(self, fps):
         resolution = 2    # VGA
         colorSpace = 11   # RGB
-        self.video_client = self.cameraProxy.subscribe("python_client", resolution, colorSpace, 5)
+        self.video_client = self.cameraProxy.subscribe("python_client", resolution, colorSpace, fps)
 
     def disconnect_vision(self):
         self.cameraProxy.unsubscribe(self.video_client)

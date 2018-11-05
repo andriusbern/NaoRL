@@ -94,9 +94,16 @@ class NaoWalking(VrepEnv):
         self.agent.naoqi_vrep_sync()
         self._make_observation()
         # Reward function
-        reward = .2
-        for i in range(2):
-            reward += abs(self.position[i] - self.initial_position[i]) * 10000000
+        reward = 0
+
+        # Reward for moving
+        reward += np.sqrt((self.position[0] - self.initial_position[0])**2 + 
+                          (self.position[1] - self.initial_position[1])**2) * 10000000
+
+        # Reward for staying upright
+        reward += (1 - (abs(self.orientation[0]) + abs(self.orientation[1]))/2)
+
+        #reward += abs(self.position[i] - self.initial_position[i]) * 10000000
         
         if self.orientation[0] < -np.pi/3 or self.orientation[0] > np.pi/3 or self.orientation[1] < -np.pi/3 or self.orientation[1] > np.pi/3:
             reward -= 100
@@ -124,17 +131,13 @@ class NaoWalking(VrepEnv):
         time.sleep(.2)
 
         # Reinitialize
-        self.agent.set_joints(self.joints, [0 for x in range(12)], 1)
-        self.initial_position = self.get_object_position(self.agent.handle)
-        
-        time.sleep(1)
-        self.agent.naoqi_vrep_sync()
-
+        self.agent.set_joints(self.joints, [0 for _ in range(12)], 1)
+        time.sleep(1.25)
         # Make first observation
         self.step_simulation()
         self.agent.naoqi_vrep_sync()
         self._make_observation()
-
+        self.initial_position = self.get_object_position(self.agent.handle)
         return np.array(self.state)
 
     def run(self):
