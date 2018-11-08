@@ -56,9 +56,9 @@ class NaoWalking(VrepEnv):
         """
         Connects to vrep, loads the scene and initializes the posture of NAO
         """
-        self.close()
+        # self.close()
         self.connect()
-        self.load_scene(self.scene)
+        # self.load_scene(self.scene)
 
     def _make_observation(self):
         """
@@ -70,7 +70,6 @@ class NaoWalking(VrepEnv):
 
         self.state[0:11] = self.agent.get_angles(self.joints, True)
         self.state[12::] = self.velocities
-
 
     def _make_action(self, action):
         """
@@ -93,17 +92,16 @@ class NaoWalking(VrepEnv):
         self.step_simulation()
         self.agent.naoqi_vrep_sync()
         self._make_observation()
+
         # Reward function
-        reward = 0
+        # reward += np.sqrt((self.position[0] - self.initial_position[0])**2 + 
+        #                   (self.position[1] - self.initial_position[1])**2) * 10000000
+        # reward += (1 - (abs(self.orientation[0]) + abs(self.orientation[1]))/2)
 
-        # Reward for moving
-        reward += np.sqrt((self.position[0] - self.initial_position[0])**2 + 
-                          (self.position[1] - self.initial_position[1])**2) * 10000000
-
-        # Reward for staying upright
-        reward += (1 - (abs(self.orientation[0]) + abs(self.orientation[1]))/2)
-
-        #reward += abs(self.position[i] - self.initial_position[i]) * 10000000
+        pos = (self.position[0] - self.initial_position[0]) * 100000000
+        orient = (1 - (abs(self.orientation[0]) + abs(self.orientation[1])/2)/2)
+        reward = pos * orient
+        # print("Pos: {}, orient: {}".format(pos, orient))
         
         if self.orientation[0] < -np.pi/3 or self.orientation[0] > np.pi/3 or self.orientation[1] < -np.pi/3 or self.orientation[1] > np.pi/3:
             reward -= 100
@@ -126,13 +124,13 @@ class NaoWalking(VrepEnv):
         # Restart simulation
         if self.running:
             self.stop_simulation()
-            time.sleep(.1)
+            time.sleep(.2)
         self.start_simulation()
         time.sleep(.2)
 
         # Reinitialize
         self.agent.set_joints(self.joints, [0 for _ in range(12)], 1)
-        time.sleep(1.25)
+        time.sleep(.25)
         # Make first observation
         self.step_simulation()
         self.agent.naoqi_vrep_sync()

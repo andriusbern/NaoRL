@@ -16,7 +16,7 @@ if __name__ == "__main__":
     env = NaoWalking(settings.LOCAL_IP,
                      settings.SIM_PORT, 
                      settings.NAO_PORT, 
-                     settings.SCENES + '/nao_walk2.ttt')
+                     settings.SCENES + '/nao_test.ttt')
     env.agent.connect_env(env)
 
     agent = models.build_ddpg_model(env,

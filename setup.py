@@ -61,6 +61,13 @@ if not os.path.isfile(os.getcwd() + '/settings.txt'):
         for line in paths:
             file.writelines(line+'\n')
     
+    # Add directories to settings.py
+    with open("nao_rl/settings.py", "a") as myfile:
+        myfile.write("\nVREP_DIR = {}".format(vrep_dir))
+        myfile.write("\nCHOREGRAPHE_DIR = {}".format(chore_dir))
+
+
+    
     
     # Add naoqi to the PYTHONPATH of the virtualenv (by creating a '.pth' file in site-packages folder)
     path = os.getcwd() + '/env/lib/python2.7/site-packages/naoqi.pth'

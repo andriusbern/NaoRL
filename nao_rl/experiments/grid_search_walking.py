@@ -13,7 +13,10 @@ Hyperparameter search for the NaoWalking environment
 if __name__ == "__main__":
 
     scene = s.SCENES + '/nao_walk.ttt'
-    env = NaoWalking(s.LOCAL_IP, s.SIM_PORT, s.NAO_PORT, scene)
+    env = NaoWalking(s.LOCAL_IP,
+                     s.SIM_PORT, 
+                     s.NAO_PORT, 
+                     scene)
 
     # Parameters
     steps  = 20000 # Number of steps per trial
@@ -36,5 +39,5 @@ if __name__ == "__main__":
 
     # Save the weights
 
-    model.save_weights(settings.SCENES + 'ddpg_{}_weights.h5f', overwrite=True)
+    model.save_weights(s.SCENES + 'ddpg_{}_weights.h5f', overwrite=True)
     env.stop_simulation()

@@ -5,6 +5,7 @@
 
 from nao_rl.utils.vrep import vrep
 import gym, time
+import nao_rl.settings as s
 
 class VrepEnv(gym.Env):
     """ 
@@ -15,9 +16,9 @@ class VrepEnv(gym.Env):
     """
 
     def __init__(self, address, port, path):
-
-        self.address        = address
-        self.port           = port
+        
+        self.address        = address # Local IP
+        self.port           = port # Port for Remote API
         self.frames_elapsed = 0
         self.path           = path
         self.client_id      = None

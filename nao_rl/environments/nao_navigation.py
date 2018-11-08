@@ -8,9 +8,9 @@ from gym import spaces
 # from image_processing import ImageProcessor
 
 """
-############
-NOT FINISHED
-############
+##################
+## NOT FINISHED ##
+##################
 """
 
 class NaoNavigation(VrepEnv):
