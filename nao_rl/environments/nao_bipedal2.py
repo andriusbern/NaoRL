@@ -7,46 +7,48 @@ from __future__ import print_function
 import time
 import numpy as np
 from gym import spaces
-import cv2 as cv
 
 # Local imports
 from nao_rl.environments import VrepEnv
 from nao_rl.utils import VrepNAO
 from nao_rl import settings
 
-class NaoWalking(VrepEnv):
+
+class NaoWalking2(VrepEnv):
     """ 
     The goal of the agent in this environment is to learn how to walk
-    Reward function is proportional to the 
+    Reward function is proportional to the
     """
-    def __init__(self, address, port, naoqi_port, path):
+    def __init__(self, address=None, port=None, naoqi_port=None, path=None):
+
+        if port is None:
+            port = settings.SIM_PORT
+        if address is None:
+            address = settings.LOCAL_IP
+        
         VrepEnv.__init__(self, address, port, path)
 
         # Vrep
         self.scene = path
-        self.initialize() # Connect to vrep, load the scene and initialize the agent
+        self.initialize()  # Connect to vrep, load the scene and initialize the agent
 
         # Agent
         self.agent = VrepNAO(True)
-        #self.agent.initialize()
         self.active_joints = ["LLeg", "RLeg"]
               
         # Action and state spaces
-        self.velocities = np.zeros(12)
-        self.velocity_bounds = [-.02, .02]
         self.action_space = spaces.Box(low=np.dot(-.005, np.ones(12)),
-                                       high=np.dot(.005, np.ones(12)))  
+                                       high=np.dot(.005, np.ones(12)),dtype=np.float32)  
 
-        low = np.array([-np.inf] * 24)
-        high = np.array([np.inf] * 24)
+        low = np.array([-np.inf] * 14)
+        high = np.array([np.inf] * 14)
 
-        self.observation_space = spaces.Box(low=low, high=high)
-        self.state = np.zeros(24)
+        self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        self.state = np.zeros(14)
 
         # Simulations parameters
         self.done = False
         self.steps = 0
-
 
     def initialize(self):
         """
@@ -61,8 +63,9 @@ class NaoWalking(VrepEnv):
         """
         
         self.state[0:12] = self.agent.get_angles()
-        self.state[12::] = self.velocities
-
+        orientation = self.agent.get_orientation()
+        self.state[12] = orientation[0]
+        self.state[13] = orientation[1]
 
     def _make_action(self, action):
         """
@@ -70,9 +73,7 @@ class NaoWalking(VrepEnv):
         """
 
         # Update velocities
-        self.velocities = np.add(self.velocities, action) # Add action to current velocities
-        self.velocities = np.clip(self.velocities, self.velocity_bounds[0], self.velocity_bounds[1]) # Clip to bounds
-        self.agent.move_joints(self.velocities)
+        self.agent.move_joints(action)
 
     def step(self, action):
         """
@@ -85,16 +86,15 @@ class NaoWalking(VrepEnv):
 
         position = self.agent.get_position()
         orientation = self.agent.get_orientation()
-
     
         pos = (position[0] - self.agent.initial_nao_position[0])
         orient = (1 - (abs(orientation[0]) + abs(orientation[1])/2)/2)
         
-        reward = pos * orient
-        # print(pos, orient, reward)
+        reward = pos
         
         if orientation[0] < -np.pi/3 or orientation[0] > np.pi/3 or orientation[1] < -np.pi/3 or orientation[1] > np.pi/3:
-            reward -= 100
+            # reward -= 100
+            reward += pos * 10
             self.done = True 
 
         return self.state, reward, self.done, {}
@@ -116,8 +116,7 @@ class NaoWalking(VrepEnv):
             self.agent.active_joint_position = np.zeros(len(self.agent.active_joint_position))
 
         self.done = False
-        self.velocities = np.zeros(12)
-        self.state = np.zeros(24)
+        self.state = np.zeros(14)
 
         # Make first observation
         self.step_simulation()
@@ -143,7 +142,7 @@ if __name__ == "__main__":
     """
     # Environment and objects
     scene = settings.SCENES + '/nao_walk.ttt'
-    env = NaoWalking(settings.LOCAL_IP, settings.SIM_PORT, settings.NAO_PORT, scene)
+    env = NaoWalking2(settings.LOCAL_IP, settings.SIM_PORT, settings.NAO_PORT, scene)
     env.agent.connect_env(env)
     env.run()
     

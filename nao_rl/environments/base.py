@@ -21,11 +21,13 @@ class VrepEnv(gym.Env):
         self.port           = port # Port for Remote API
         self.frames_elapsed = 0
         self.path           = path
+        self.max_attempts   = 10
         self.client_id      = None
         self.connected      = False
         self.running        = False
         self.scene_loaded   = False
         self.headless       = False
+
 
         self.modes = {'blocking'  : vrep.simx_opmode_blocking,  # Waits until the respose from vrep remote API is sent back
                       'oneshot'   : vrep.simx_opmode_oneshot,   # Sends a one time packet to vrep remote API (used for setting parameters)
@@ -39,15 +41,27 @@ class VrepEnv(gym.Env):
         """
         if self.connected:
 			raise RuntimeError('Client is already connected.')
+        e = 0
+        c_id = 0
+        while e < self.max_attempts:  
+            c_id = vrep.simxStart(self.address, self.port, True, True, 5000, 0)
+            if c_id >= 0:
+                self.client_id = c_id
+                self.connected = True
+                print 'Connection to client successful. IP: {}; port: {}, client_id: {}'.format(self.address, self.port, c_id)
+                break
+            else:
+                e += 1
+                print 'Could not connect to client, attempt {}/{}...'.format(e+1, self.max_attempts)
+                time.sleep(1)
 
-        self.client_id = vrep.simxStart(self.address, self.port, True, True, 5000, 0)
-        self.connected = True
 
     def disconnect(self):
         if not self.connected:
             raise RuntimeError('Client is not connected.')
         vrep.simxFinish(self.client_id)
         self.connected = False
+
 
     def load_scene(self, path):
         """
@@ -162,13 +176,14 @@ class VrepEnv(gym.Env):
         vrep.simxPauseCommunication(self.client_id, False)
 
 
-    def get_joint_angle(self, handle):
+    def get_joint_angle(self, handle, mode='blocking'):
         """
         Get the current angle of a joint identified by [handle]
+        By default uses a blocking call
         """
         return vrep.simxGetJointPosition(   self.client_id, 
                                             handle,
-				                            vrep.simx_opmode_blocking)[0]
+				                            self.modes[mode])[0]
 
     def get_vision_image(self, handle, mode='blocking'):
         """
@@ -181,14 +196,14 @@ class VrepEnv(gym.Env):
         return res, resolution, image
 
     
-    def get_object_position(self, handle):
+    def get_object_position(self, handle, mode='blocking'):
         """
         Get the position of an object relative to the floor
         """
         return vrep.simxGetObjectPosition(self.client_id, 
                                           handle,
-                                          142,
-                                          vrep.simx_opmode_blocking)[1]
+                                          -1,
+                                          self.modes[mode])[1]
 
     def set_object_position(self, handle, position):
         """
@@ -197,18 +212,18 @@ class VrepEnv(gym.Env):
 
         vrep.simxSetObjectPosition(self.client_id,
                                    handle,
-                                   142,
+                                   -1,
                                    position,
                                    vrep.simx_opmode_oneshot)
 
-    def get_object_orientation(self, handle):
+    def get_object_orientation(self, handle, mode='blocking'):
         """
         Get the angular orientation of the object in vrep
         """
         return vrep.simxGetObjectOrientation(self.client_id,
                                              handle, 
                                              -1,
-                                              vrep.simx_opmode_blocking)[1]
+                                            self.modes[mode])[1]
 
     def set_object_orientation(self, handle, orientation):
         """

@@ -5,6 +5,8 @@ from nao_rl.environments import NaoWalking
 import nao_rl.settings as settings
 from nao_rl.learning import models
 
+import nao_rl
+
 """
 Example file that uses Deep Deterministic Policy Gradient algorithm to train the agent
 Hyperparameters are subject to optimization
@@ -12,14 +14,13 @@ Hyperparameters are subject to optimization
 
 if __name__ == "__main__":
     
-    ENV_NAME = 'NAO_bipedal_gait'
-    env = NaoWalking(settings.LOCAL_IP,
-                     settings.SIM_PORT, 
-                     settings.NAO_PORT, 
-                     settings.SCENES + '/nao_test.ttt')
-    env.agent.connect_env(env)
+    ENV_NAME = 'nao_bipedal'
+    
+    env = nao_rl.make(ENV_NAME, settings.SIM_PORT, headless=False, reinit=True)
+    
+    env.agent.connect(env, env.active_joints)
 
-    agent = models.build_ddpg_model(env,
+    model = models.build_ddpg_model(env,
                                     actor_hidden_layers=[80,80],
                                     critic_hidden_layers=[100,100], 
                                     gamma=0.99,
@@ -27,7 +28,7 @@ if __name__ == "__main__":
 
 
     # Train
-    history = agent.fit(env, nb_steps=200000, visualize=False, verbose=2, nb_max_episode_steps=200)
+    history = model.fit(env, nb_steps=200000, visualize=False, verbose=2, nb_max_episode_steps=200)
     filename = settings.TRAINED_MODELS + '/ddpg_{}_weights.h5f'.format(ENV_NAME)
     #agent.save_weights(filename, overwrite=True)
     env.stop_simulation()

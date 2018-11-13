@@ -14,7 +14,7 @@ from PIL import Image as I
 
 class NAO(object):
     """
-    Base class for NAO that includes all the functions that can be used for both real and virtual versions of NAO
+    Base class for NAO that contains all the functions that can be used for both real and virtual versions of NAO
     Movement commands are issued using ALMotion Proxy
     """
     def __init__(self, ip, port):
@@ -23,8 +23,8 @@ class NAO(object):
         self.port = port
 
         # Motion and posture proxies of the virtual Nao created by naoqi-bin
-        self.motionProxy = ALProxy("ALMotion", self.ip, self.port)
-        self.postureProxy = ALProxy("ALRobotPosture", self.ip, self.port)
+        self.motionProxy = None
+        self.postureProxy = None
 
         ####  Joints
         # Ordering corresponds to the one provided by Aldebaran Robotics
@@ -49,10 +49,18 @@ class NAO(object):
                        "LArm": self.joint_names[2:7],
                        "LLeg": self.joint_names[7:13],
                        "RLeg": self.joint_names[13:19],
-                       "RArm": self.joint_names[19::]} 
+                       "RArm": self.joint_names[19::],
+                       "Body": self.joint_names} 
 
         self.body = ["Head", "LArm", "LLeg", "RLeg", "RArm"]
 
+
+    def connect_naoqi(self, naoqi_ip, naoqi_port):
+        """
+        Connect to NaoQI
+        """
+        self.motionProxy = ALProxy("ALMotion", self.ip, self.port)
+        self.postureProxy = ALProxy("ALRobotPosture", self.ip, self.port)
 
     def initialize(self, reinitialize=False):
         """
@@ -150,7 +158,7 @@ class VirtualNAO(NAO):
     def __init__(self, ip, port):
         NAO.__init__(self, ip, port)
 
-        self.name = 'NAO'
+        self.name = 'NAO#'
         self.handle = None
 
         # Camera 
@@ -183,13 +191,14 @@ class VirtualNAO(NAO):
 
         for joint in vrep_joint_names:
             handle = self.env.get_handle(joint)
-            print "Getting handle {} - number : {}".format(joint, handle)
+            # print "Getting handle {} - number : {}".format(joint, handle)
             handles.append(handle)
+    
         # Create a dictionary where the joint name gets associated with the corresponding handle in vrep
         self.handles = dict(zip(self.joint_names, handles))
         
 
-    def include(self, targets="Body"):
+    def select_joints(self, targets="Body"):
         """
         Retrieve lists of indices and handles in the target limbs
         args:
@@ -216,7 +225,7 @@ class VirtualNAO(NAO):
         """
         # assert targets in self.body
 
-        indices, handles = self.include(targets)
+        indices, handles = self.select_joints(targets)
         angles = self.get_angles(use_sensors=True)
         for i, handle in enumerate(handles):
             self.env.set_joint_position(handle, angles[indices[i]])
@@ -289,5 +298,121 @@ class VirtualNAO(NAO):
             image = I.frombuffer("RGB", (resolution[0],resolution[1]), image_byte_array, "raw", "RGB", 0, 1)
 
         return image, resolution
+
+class VrepNAO(VirtualNAO):
+    """
+    NAO that is controlled directly through VREP API instead of the NaoQI proxies
+    """
+    def __init__(self, streaming_mode=True):
+        ip   = None
+        port = None
+        VirtualNAO.__init__(self, ip, port)
+
+        # Initial params
+        self.initial_position = []
+        self.initial_orientation = []
+        self.initial_nao_position = None
+
+        self.position = np.zeros(len(self.handles))
+        self.orientation = []
+        
+        self.active_joints = None
+        self.active_joint_position = None
+        self.streaming = streaming_mode
+
+    def reset_position(self):
+        
+        _, all_handles = self.select_joints()
+        # Position and orientation
+        for i, handle in enumerate(all_handles):
+            self.env.set_object_position(handle, self.initial_position[i])
+            self.env.set_object_orientation(handle, self.initial_orientation[i])
+
+        # Joint angles
+        self.active_joint_position = np.zeros(len(self.active_joints))
+        
+        self.env.set_joint_position_multiple(all_handles, np.zeros(len(self.handles)))
+
+    def connect(self, env, joints, position=True, orientation=True):
+        """
+        Override the default connect_env function from VirtualNAO
+        Includes a function to start streaming the positions of specified joints
+        """
+        self.env = env
+        self.get_handles()
+        self.handle = self.env.get_handle(self.name)
+        _, self.active_joints = self.select_joints(joints)
+        _, all_handles = self.select_joints()
+
+        # Collect initial positional parameters
+        self.initial_nao_position = self.env.get_object_position(self.handle)
+        for handle in all_handles:
+            self.initial_position.append(self.env.get_object_position(handle))
+            self.initial_orientation.append(self.env.get_object_orientation(handle))
+
+        self.active_joint_position = np.zeros(len(self.active_joints))
+        if self.streaming:
+            self.start_streaming(position, orientation)
+        # self.reset_position()
+
+
+
+    def move_joints(self, angles):
+        """
+        Override the function of NAO class to only operate in VREP 
+        """
+        self.active_joint_position += np.squeeze(angles)
+        self.env.set_joint_position_multiple(self.active_joints, self.active_joint_position)
+
+
+    def get_angles(self):
+        # _, handles = self.select_joints(joints)
+        angles = np.zeros(len(self.active_joints))
+        if self.streaming:
+            for i, handle in enumerate(self.active_joints):
+                angles[i] = self.env.get_joint_angle(handle, 'buffer')
+        else:
+            for i, handle in enumerate(self.active_joints):
+                angles[i] = self.env.get_joint_angle(handle)
+
+        return angles
+
+    def get_orientation(self):
+        if self.streaming:
+            return self.env.get_object_orientation(self.handle, 'buffer')
+        else:
+            return self.env.get_object_orientation(self.handle)
+
+    def get_position(self):
+        if self.streaming:
+            return self.env.get_object_position(self.handle, 'buffer')
+        else:
+            return self.env.get_object_position(self.handle)
+
+
+
+    def start_streaming(self, orientation=False, position=False):
+        """
+        Start streaming the positions of active joints
+        Vrep will send joint angle information in every time step
+        Removes the need for sending blocking calls with vrep.simx_opmode_blocking in order 
+        to obtain the joint positions
+
+        Arguments:
+            orientation : if true the angular orientation of NAO will be streamed each frame
+            position    : if true the absolute position of NAO will be streamed each frame        
+        """
+        for joint in self.active_joints:
+            self.env.get_joint_angle(joint, 'streaming')
+        
+        if orientation:
+            self.env.get_object_orientation(self.handle, 'streaming')
+        
+        if position:
+            self.env.get_object_position(self.handle, 'streaming')
+
+
+
+
 
 

@@ -37,4 +37,4 @@ class Log:
         """
         Get average rewards over all episodes
         """
-
+        pass
