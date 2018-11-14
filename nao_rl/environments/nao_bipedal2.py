@@ -84,9 +84,10 @@ class NaoWalking2(VrepEnv):
         self.step_simulation()
         self._make_observation()
 
+        
         position = self.agent.get_position()
         orientation = self.agent.get_orientation()
-    
+
         pos = (position[0] - self.agent.initial_nao_position[0])
         orient = (1 - (abs(orientation[0]) + abs(orientation[1])/2)/2)
         
