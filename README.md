@@ -12,7 +12,7 @@ A package that contains several reinforcement learning environments featuring NA
 1. [Python NAOqi SDK v2.1.2](https://community.ald.softbankrobotics.com/en/dl/ZmllbGRfY29sbGVjdGlvbl9pdGVtLTQ1My1maWVsZF9zb2Z0X2RsX2V4dGVybmFsX2xpbmstMC1lZWFmOGU%3D?width=500&height=auto) - Libraries provided by Softbank robotics for NAO control (**requires registering**)
 
 ### Python packages
-numpy, tensorflow, keras, keras-rl, opencv-python, Pillow
+numpy, tensorflow, keras, opencv-python
 
 # Installation
 *(Tested on Ubuntu 18.04)*
