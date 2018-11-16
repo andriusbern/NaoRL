@@ -4,6 +4,7 @@ nao_rl.egg-info/
 dist/
 .vscode/
 naorl/tests
+naorl/data
 
 # .gitignore
 
@@ -11,3 +12,5 @@ naorl/tests
 *.pyc
 *.txt
 *.h5f
+*.log
+*.pickle
