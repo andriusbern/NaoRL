@@ -11,7 +11,7 @@ def destroy_instances():
     print("Destroying all previous VREP and NaoQI instances...")
     subprocess.Popen('pkill vrep'.split())
     subprocess.Popen('pkill naoqi-bin'.split())
-    time.sleep(3)
+    time.sleep(1)
 
 
 def start_vrep(sim_port, path, exit_after_sim=False, headless=True):
@@ -99,5 +99,30 @@ def make(env_name, sim_port, nao_port=None, headless=True, reinit=False):
         raise RuntimeError('No such environment.')
 
     return env
+
+
+def save_model(filename, object, experiment_name):
+    """
+    Saves a model in the trained_models dir
+    """
+
+    import pickle
+    loc = s.MAIN_DIR + '/trained_models'
+    suffix = '/model_{}'.format(experiment_name)
+    file = loc + suffix + '.pickle'
+    with open(file, 'wb') as f:
+        pickle.dump(object, f)
+
+
+def load_model(filename):
+    """
+    Loads a trained model from a pickle file
+    """
+    import pickle
+
+    with open(filename, 'wb') as f:
+        return pickle.load(f)
+
+
 
 

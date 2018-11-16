@@ -1,18 +1,13 @@
-import matplotlib.pyplot as plt
 
 class Log:
     def __init__(self):
-        self.rewards = []
-        self.exp_names = None
-        self.steps = []
-        self.params = None
+        self.data = {}
 
-    def add_history(self, h, name):
-        self.rewards.append(h.history['episode_reward'])
-        self.exp_names.append(name)
-        self.steps.append(h.history['nb_steps'])
+    def add_history(self, **kwargs):
+        
 
     def plot(self):
+        import matplotlib.pyplot as plt
         for i, episode in enumerate(self.rewards):
             plt.plot(episode)
             # label corresponds to exp_names

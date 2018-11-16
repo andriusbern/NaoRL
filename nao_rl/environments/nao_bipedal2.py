@@ -104,8 +104,7 @@ class NaoWalking2(VrepEnv):
         """
         Reset the environment to default state and return the first observation
         """ 
-        # Reset state
-        print('-------------------------------------------------')
+
         # Initial position
         
         self.stop_simulation()

@@ -3,6 +3,7 @@ build/
 nao_rl.egg-info/
 dist/
 .vscode/
+naorl/tests
 
 # .gitignore
 

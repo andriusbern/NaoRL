@@ -18,6 +18,8 @@ class PPO(object):
                  actor_layers=[500,500], critic_layers=[500],
                  actor_lr=.00001, critic_lr=.00002):
 
+        self.vrep_port = 19998
+
         # Training parameters
         self.gamma = gamma
         self.max_episodes = max_episodes
@@ -34,21 +36,28 @@ class PPO(object):
         self.update_counter = 0
         self.current_episode = 0
         self.running_reward = []
+        self.episode_reward = []
         self.time = None
-        self.verbose = False
+        self.verbose = True
 
         # Threading and events
-        self.update_event, self.rolling_event = threading.Event(), threading.Event()
-        self.tf_coordinator = tf.train.Coordinator()
-        self.queue = queue.Queue()
+
         self.sess = tf.Session()
+        self.update_event = None
+        self.rolling_event = None
+        self.tf_coordinator = None
+        self.queue = None
 
         # Environment parameters
         print "Creating dummy environment to obtain the parameters..."
-        env = nao_rl.make(self.env_name, 19998)
+        # nao_rl.destroy_instances()
+        env = nao_rl.make(self.env_name, self.vrep_port)
+        self.vrep_port -= 1
         self.action_space  = env.action_space.shape[0]
         self.state_space   = env.observation_space.shape[0]
-        self.action_bounds = [env.action_space.low[0], self.action_space.high[0]]
+        self.action_bounds = [env.action_space.low[0], -env.action_space.low[0]]
+        env.disconnect()
+        time.sleep(.5)
         nao_rl.destroy_instances()
         del env
 
@@ -57,8 +66,8 @@ class PPO(object):
         ##############
 
         # Input placeholders
-        self.state_input       = tf.placeholder(tf.float32, [None, self.state_space], ' state_input')
-        self.action_input      = tf.placeholder(tf.float32, [None, self.action_space], 'action_input')
+        self.state_input       = tf.placeholder(tf.float32, [None, self.state_space], 'state_input')
+        self.action_input      = tf.placeholder(tf.float32, [None, self.action_space],'action_input')
         self.advantage_input   = tf.placeholder(tf.float32, [None, 1], 'advantage')
         self.discounted_reward = tf.placeholder(tf.float32, [None, 1], 'discounted_reward')
 
@@ -66,7 +75,7 @@ class PPO(object):
         # Critic
         hidden_layer = tf.layers.dense(self.state_input, critic_layers[0], tf.nn.relu) 
         for layer_size in critic_layers[1::]:
-            hidden_layer = tf.layers.dense(hidden_layer, critic_layers[layer_size], tf.nn.relu)
+            hidden_layer = tf.layers.dense(hidden_layer, layer_size, tf.nn.relu)
         self.critic_output = tf.layers.dense(hidden_layer, 1)
         
         self.advantage = self.discounted_reward - self.critic_output
@@ -75,10 +84,10 @@ class PPO(object):
 
         #######
         # Actor
-        policy, pi_params = self.build_actor('pi', True, actor_layers)
-        old_policy, oldpi_params = self.build_actor('oldpi', False, actor_layers)
+        policy, pi_params = self.build_actor('policy', True, actor_layers)
+        old_policy, oldpi_params = self.build_actor('old_policy', False, actor_layers)
         self.choose_action = tf.squeeze(policy.sample(1), axis=0)  
-        self.update_policy = [oldpolicy.assign(policy) for policy, oldpolicy in zip(pi_params, oldpi_params)]
+        self.update_policy = [old.assign(p) for p, old in zip(pi_params, oldpi_params)]
         ratio = policy.prob(self.action_input) / (old_policy.prob(self.action_input) + 1e-5)
         surrogate_loss = ratio * self.advantage_input
 
@@ -99,8 +108,8 @@ class PPO(object):
             for layer_size in layers[1::]:
                 hidden_layer = tf.layers.dense(hidden_layer, layer_size, tf.nn.relu, trainable=trainable)
             # Output layer
-            mu = tf.layers.dense(hidden_layer, self.action_space, tf.nn.tanh, trainable=trainable)
-            sigma = tf.layers.dense(hidden_layer, self.state_space, tf.nn.softplus, trainable=trainable)
+            mu = 2 * tf.layers.dense(hidden_layer, self.action_space, tf.nn.tanh, trainable=trainable)
+            sigma = tf.layers.dense(hidden_layer, self.action_space, tf.nn.softplus, trainable=trainable)
             norm_dist = tf.distributions.Normal(loc=mu, scale=sigma)
 
         params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
@@ -134,21 +143,22 @@ class PPO(object):
                 self.rolling_event.set()        
 
 
-    def action(self, s):
+    def action(self, state):
         """
         Pick an action based on state
         """
-        s = s[np.newaxis, :]
-        a = self.sess.run(self.choose_action, {self.state_input: s})[0]
-        return np.clip(a, self.action_bounds[0], self.action_bounds[1])
+        state = state[np.newaxis, :]
+        action = self.sess.run(self.choose_action, {self.state_input: state})[0]
+        return np.clip(action, self.action_bounds[0], self.action_bounds[1])
 
 
-    def get_critic_output(self, s):
+    def get_critic_output(self, state):
         """
         Compute the value estimate
         """
-        if s.ndim < 2: s = s[np.newaxis, :]
-        return self.sess.run(self.critic_output, {self.state_input: s})[0, 0]
+        if state.ndim < 2: 
+            state = state[np.newaxis, :]
+        return self.sess.run(self.critic_output, {self.state_input: state})[0, 0]
 
 
     def create_workers(self):
@@ -157,11 +167,38 @@ class PPO(object):
         """
         self.workers = []
         for i in range(self.n_workers):
-            env = nao_rl.make(self.env_name, 19998-i, headless=True)
+            env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
+            self.vrep_port -= 1
             worker = Worker(env, self, i)
             worker.env.agent.connect(worker.env, worker.env.active_joints) ### IMPROVE
             self.workers.append(worker)
-        self.time = time.time()
+
+    def train(self):
+
+        self.update_event, self.rolling_event = threading.Event(), threading.Event()
+        self.tf_coordinator = tf.train.Coordinator()
+        self.queue = queue.Queue()     
+        self.rolling_event.set()     
+        self.update_event.clear()          
+        try:
+            self.create_workers()
+            threads = []
+            for worker in self.workers:         
+                t = threading.Thread(target=worker.work, args=())
+                t.start()                 
+                threads.append(t)
+            threads.append(threading.Thread(target=self.update,))
+            threads[-1].start()
+            self.time = time.time()
+            self.tf_coordinator.join(threads)
+        except KeyboardInterrupt:
+            print "Interrupted!"
+
+    def close_session(self):
+        for worker in self.workers:
+            worker.env.disconnect()
+        self.sess.close()
+        tf.reset_default_graph()
 
 
 class Worker(object):
@@ -179,8 +216,8 @@ class Worker(object):
             state_buffer, action_buffer, reward_buffer = [], [], []
             for t in range(self.trainer.episode_length):
                 if not self.trainer.rolling_event.is_set():      
-                    self.trainer.rolling_event.wait()                        # wait until PPO is updated
-                    state_buffer, action_buffer, reward_buffer = [], [], []   # clear history buffer, use new policy to collect data
+                    self.trainer.rolling_event.wait()                        
+                    state_buffer, action_buffer, reward_buffer = [], [], [] 
                 action = self.trainer.action(state)
                 state_, reward, done, _ = self.env.step(action)
                 state_buffer.append(state)
@@ -192,7 +229,7 @@ class Worker(object):
 
                 self.trainer.update_counter += 1              
                 if t == self.trainer.episode_length - 1 or self.trainer.update_counter >= self.trainer.batch_size or done:
-                    value = self.trainer.get_v(state_)
+                    value = self.trainer.get_critic_output(state_)
 
                     # Discounted reward
                     discounted_r = []
@@ -208,7 +245,7 @@ class Worker(object):
                         self.trainer.rolling_event.clear()       
                         self.trainer.update_event.set()          
 
-                    if self.trainer.global_episode >= self.trainer.max_episodes:
+                    if self.trainer.current_episode >= self.trainer.max_episodes:
                         self.trainer.tf_coordinator.request_stop()
                         break
                     
@@ -217,8 +254,11 @@ class Worker(object):
                         break
 
             # record reward changes, plot later
-            if len(self.trainer.running_reward) == 0: self.trainer.running_reward.append(episode_reward)
-            else: self.trainer.running_reward.append(self.trainer.running_reward[-1]*0.9+episode_reward*0.1)
+            if len(self.trainer.running_reward) == 0: 
+                self.trainer.running_reward.append(episode_reward)
+            else: 
+                self.trainer.running_reward.append(self.trainer.running_reward[-1]*0.9+episode_reward*0.1)
+            self.trainer.episode_reward.append(episode_reward)
             self.trainer.current_episode += 1
 
             if self.trainer.verbose:
