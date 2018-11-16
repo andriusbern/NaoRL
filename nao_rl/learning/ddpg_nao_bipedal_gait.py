@@ -8,7 +8,7 @@ from nao_rl.learning import models
 import nao_rl
 
 """
-Example file that uses Deep Deterministic Policy Gradient algorithm to train the agent
+Example file that uses Deep Deterministic Policy Gradient algorithm to train the agent (keras-rl)
 Hyperparameters are subject to optimization
 """
 

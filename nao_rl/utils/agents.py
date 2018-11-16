@@ -6,7 +6,6 @@
 from naoqi import ALProxy
 import time, array
 import numpy as np
-from PIL import Image as I
 
 ############
 ## AGENTS ##

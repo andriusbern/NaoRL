@@ -193,6 +193,10 @@ class PPO(object):
             self.tf_coordinator.join(threads)
         except KeyboardInterrupt:
             print "Interrupted!"
+            self.close_session()
+            
+        self.tf_coordinator.wait_for_stop()
+
 
     def close_session(self):
         for worker in self.workers:
@@ -203,7 +207,7 @@ class PPO(object):
 
 class Worker(object):
     def __init__(self, env, global_ppo, worker_name):
-        self.worker_name = worker_name
+        self.worker_name = env.port
         self.env = env
         self.trainer = global_ppo
 
@@ -230,7 +234,7 @@ class Worker(object):
                 self.trainer.update_counter += 1              
                 if t == self.trainer.episode_length - 1 or self.trainer.update_counter >= self.trainer.batch_size or done:
                     value = self.trainer.get_critic_output(state_)
-
+                    self.trainer.total_steps += episode_steps
                     # Discounted reward
                     discounted_r = []
                     for reward in reward_buffer[::-1]:
@@ -248,10 +252,7 @@ class Worker(object):
                     if self.trainer.current_episode >= self.trainer.max_episodes:
                         self.trainer.tf_coordinator.request_stop()
                         break
-                    
-                    if done: 
-                        self.trainer.total_steps += episode_steps
-                        break
+          
 
             # record reward changes, plot later
             if len(self.trainer.running_reward) == 0: 

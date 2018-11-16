@@ -8,8 +8,8 @@ https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/tree/master
 
 import tensorflow as tf
 import numpy as np
-import gym, threading, queue
-import nao_rl, time
+import gym, threading, queue, time
+import nao_rl
 
 
 class PPO(object):

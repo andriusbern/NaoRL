@@ -1,5 +1,7 @@
 # Code snippets to test real and virtual NAO
 
+## Deprecated
+
 from nao_rl.utils import VirtualNAO, RealNAO
 import nao_rl.settings as s
 from nao_rl.utils import image_processing as im
