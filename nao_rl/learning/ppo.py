@@ -44,7 +44,7 @@ class PPO(object):
 
         self.sess = tf.Session()
         self.update_event = None
-        self.rolling_event = None
+        self.rollout = None
         self.tf_coordinator = None
         self.queue = None
 
@@ -140,7 +140,7 @@ class PPO(object):
 
                 self.update_event.clear()       
                 self.update_counter = 0         
-                self.rolling_event.set()        
+                self.rollout.set()        
 
 
     def action(self, state):
@@ -170,15 +170,15 @@ class PPO(object):
             env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
             self.vrep_port -= 1
             worker = Worker(env, self, i)
-            worker.env.agent.connect(worker.env, worker.env.active_joints) ### IMPROVE
+            worker.env.agent.connect(worker.env) ### IMPROVE
             self.workers.append(worker)
 
     def train(self):
 
-        self.update_event, self.rolling_event = threading.Event(), threading.Event()
+        self.update_event, self.rollout = threading.Event(), threading.Event()
         self.tf_coordinator = tf.train.Coordinator()
         self.queue = queue.Queue()     
-        self.rolling_event.set()     
+        self.rollout.set()     
         self.update_event.clear()          
         try:
             self.create_workers()
@@ -190,14 +190,15 @@ class PPO(object):
             threads.append(threading.Thread(target=self.update,))
             threads[-1].start()
             self.time = time.time()
-            self.tf_coordinator.join(threads)
+            self.tf_coordinator.join(threads, ignore_live_threads=True, stop_grace_period_secs=5)
+            #self.tf_coordinator.wait_for_stop()
         except KeyboardInterrupt:
-            print "Interrupted!"
-            self.close_session()
-            
-        self.tf_coordinator.wait_for_stop()
+            print "Training stopped..."
+            # self.tf_coordinator.request_stop()
+            # #self.tf_coordinator.wait_for_stop()
+            # self.close_session()
 
-
+        
     def close_session(self):
         for worker in self.workers:
             worker.env.disconnect()
@@ -219,8 +220,8 @@ class Worker(object):
             done = False
             state_buffer, action_buffer, reward_buffer = [], [], []
             for t in range(self.trainer.episode_length):
-                if not self.trainer.rolling_event.is_set():      
-                    self.trainer.rolling_event.wait()                        
+                if not self.trainer.rollout.is_set() and not self.trainer.tf_coordinator.should_stop():      
+                    self.trainer.rollout.wait()                        
                     state_buffer, action_buffer, reward_buffer = [], [], [] 
                 action = self.trainer.action(state)
                 state_, reward, done, _ = self.env.step(action)
@@ -233,6 +234,11 @@ class Worker(object):
 
                 self.trainer.update_counter += 1              
                 if t == self.trainer.episode_length - 1 or self.trainer.update_counter >= self.trainer.batch_size or done:
+
+                    if self.trainer.current_episode >= self.trainer.max_episodes:
+                        self.trainer.tf_coordinator.request_stop()
+                        break
+
                     value = self.trainer.get_critic_output(state_)
                     self.trainer.total_steps += episode_steps
                     # Discounted reward
@@ -246,15 +252,12 @@ class Worker(object):
                     state_buffer, action_buffer, reward_buffer = [], [], []
                     self.trainer.queue.put(np.hstack((bs, ba, br)))         
                     if self.trainer.update_counter >= self.trainer.batch_size:
-                        self.trainer.rolling_event.clear()       
+                        self.trainer.rollout.clear()       
                         self.trainer.update_event.set()          
-
-                    if self.trainer.current_episode >= self.trainer.max_episodes:
-                        self.trainer.tf_coordinator.request_stop()
+                    
+                    if done:
                         break
           
-
-            # record reward changes, plot later
             if len(self.trainer.running_reward) == 0: 
                 self.trainer.running_reward.append(episode_reward)
             else: 
@@ -263,12 +266,15 @@ class Worker(object):
             self.trainer.current_episode += 1
 
             if self.trainer.verbose:
-                print('{0:.1f}%'.format(float(self.trainer.current_episode)/float(self.trainer.max_episodes)*100),
-                      self.trainer.current_episode,
-                    ' | Worker %i' % self.worker_name,
-                    ' | Ep reward: %.2f' % episode_reward,
-                    ' | Discounted reward: %.2f' % self.trainer.running_reward[-1],
-                    ' | S: {}'. format(self.trainer.total_steps),
-                    ' | S/s: {}'.format(self.trainer.total_steps/(time.time() - self.trainer.time)))
+                self.status(episode_steps)
+                
 
-
+    def status(self, episode_steps):
+        print('{0:.1f}%'.format(float(self.trainer.current_episode)/float(self.trainer.max_episodes)*100),
+                self.trainer.current_episode,
+            ' | Worker %i' % self.worker_name,
+            ' | Ep reward: %.2f' % self.trainer.episode_reward[-1],
+            ' | Discounted reward: %.2f' % self.trainer.running_reward[-1],
+            ' | S: {}'. format(self.trainer.total_steps),
+            ' | S/s: {}'.format(self.trainer.total_steps/(time.time() - self.trainer.time)),
+            ' | Ep Steps: {}'.format(episode_steps) )

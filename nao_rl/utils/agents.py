@@ -275,7 +275,7 @@ class VirtualNAO(NAO):
         """
         print "Setting posture..."
         self.postureProxy.post.goToPosture(posture, 1)
-        for i in range(20):
+        for _ in range(20):
             self.naoqi_vrep_sync()
             self.env.step_simulation()
         print "Done."
@@ -298,6 +298,7 @@ class VirtualNAO(NAO):
 
         return image, resolution
 
+
 class VrepNAO(VirtualNAO):
     """
     NAO that is controlled directly through VREP API instead of the NaoQI proxies
@@ -319,20 +320,11 @@ class VrepNAO(VirtualNAO):
         self.active_joint_position = None
         self.streaming = streaming_mode
 
-    def reset_position(self):
+        self.part_handles = {}
+        self.body_parts   = [] # Active body parts
         
-        _, all_handles = self.select_joints()
-        # Position and orientation
-        for i, handle in enumerate(all_handles):
-            self.env.set_object_position(handle, self.initial_position[i])
-            self.env.set_object_orientation(handle, self.initial_orientation[i])
 
-        # Joint angles
-        self.active_joint_position = np.zeros(len(self.active_joints))
-        
-        self.env.set_joint_position_multiple(all_handles, np.zeros(len(self.handles)))
-
-    def connect(self, env, joints, position=True, orientation=True):
+    def connect(self, env, position=True, orientation=True, track=True):
         """
         Override the default connect_env function from VirtualNAO
         Includes a function to start streaming the positions of specified joints
@@ -340,20 +332,36 @@ class VrepNAO(VirtualNAO):
         self.env = env
         self.get_handles()
         self.handle = self.env.get_handle(self.name)
-        _, self.active_joints = self.select_joints(joints)
-        _, all_handles = self.select_joints()
-
+        _, self.active_joints = self.select_joints(env.active_joints)
+        self.active_joint_position = np.zeros(len(self.active_joints))
+        
         # Collect initial positional parameters
         self.initial_nao_position = self.env.get_object_position(self.handle)
-        for handle in all_handles:
-            self.initial_position.append(self.env.get_object_position(handle))
-            self.initial_orientation.append(self.env.get_object_orientation(handle))
 
-        self.active_joint_position = np.zeros(len(self.active_joints))
+        # Body parts to track
+        self.part_handles = {'l_foot' : self.env.get_handle('imported_part_18'),
+                             'r_foot' : self.env.get_handle('imported_part_37'),
+                             'head'   : self.env.get_handle('imported_part_16_sub0')}
+
+        self.body_parts = env.body_parts
+        positions = [self.env.get_object_position(self.part_handles[handle]) for handle in self.body_parts]
+        self.initial_position = dict(zip(self.body_parts, positions))
+
         if self.streaming:
             self.start_streaming(position, orientation)
-        # self.reset_position()
 
+    def reset_position(self):
+        """
+        Reinitializes the body position
+        """
+        self.active_joint_position = np.zeros(len(self.active_joints))
+
+
+    def get_body_part_position(self, part):
+        """
+        Returns the position of a body part
+        """
+        return self.env.get_object_position(self.part_handles[part])
 
 
     def move_joints(self, angles):
@@ -376,17 +384,30 @@ class VrepNAO(VirtualNAO):
 
         return angles
 
-    def get_orientation(self):
-        if self.streaming:
-            return self.env.get_object_orientation(self.handle, 'buffer')
-        else:
-            return self.env.get_object_orientation(self.handle)
 
-    def get_position(self):
+    def get_orientation(self, part=None):
+        """
+        Get the angular orientation of a part in radians (axes [x,y,z])
+        """ 
+        if part is None: part = self.handle
+        else: part = self.part_handles[part]
+
         if self.streaming:
-            return self.env.get_object_position(self.handle, 'buffer')
+            return self.env.get_object_orientation(part, 'buffer')
         else:
-            return self.env.get_object_position(self.handle)
+            return self.env.get_object_orientation(part)
+
+    def get_position(self, part=None):
+        """
+        Get the absolute position of a part
+        """
+        if part is None: part = self.handle 
+        else: part = self.part_handles[part]
+
+        if self.streaming:
+            return self.env.get_object_position(part, 'buffer')
+        else:
+            return self.env.get_object_position(part)
 
 
 
@@ -403,6 +424,10 @@ class VrepNAO(VirtualNAO):
         """
         for joint in self.active_joints:
             self.env.get_joint_angle(joint, 'streaming')
+
+        # Track body parts
+        for body_part in self.body_parts:
+            self.env.get_object_position(self.part_handles[body_part], 'streaming')
         
         if orientation:
             self.env.get_object_orientation(self.handle, 'streaming')
