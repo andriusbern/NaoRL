@@ -7,28 +7,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+"""
+Environment ideas:
+    Reward functions:
+
+    1. With absolute position as only reward
+    2. With feet position as only reward
+    3. Both combined
+"""
+
 def grid_search():
     """
-    Script for trying all combinations of parameters specified 
-    in the 'parameters dictionary'
+    Script for trying all combinations of parameters specified
     """
-
     # PARAMETERS
-
-    number_of_repeats = 2 # Number of iterations per each combination of params
+    number_of_repeats = 1 # Number of iterations per each combination of params
 
     parameters = {'env_name'       : ['nao-bipedal2'],
-                  'n_workers'      : [4],
-                  'max_episodes'   : [50],
-                  'episode_length' : [100],
-                  'batch_size'     : [128],
+                  'n_workers'      : [8],
+                  'max_episodes'   : [1000],
+                  'episode_length' : [1000],
+                  'batch_size'     : [2048],
                   'epochs'         : [10],
-                  'epsilon'        : [.15],
+                  'epsilon'        : [.2],
                   'gamma'          : [.99],
-                  'actor_layers'   : [[200, 200], [300,300]],
-                  'critic_layers'  : [[100, 100]],
-                  'actor_lr'       : [.00001],
-                  'critic_lr'      : [.00001]}
+                  'actor_layers'   : [[256, 256]],
+                  'critic_layers'  : [[128, 128],[128], [64, 64]],
+                  'actor_lr'       : [.000002],
+                  'critic_lr'      : [.00002]}
     
 
     values = tuple(parameters.values())
@@ -37,7 +43,6 @@ def grid_search():
     counter = 0
     for params in param_iterator:
         counter += 1
-        episode = []
         args = dict(zip(parameters.keys(), params))
         for i in range(number_of_repeats):
             print "\nIteration {} of parameter set {}/{}\nParameters:".format(i+1, counter, len(param_iterator))
@@ -47,9 +52,6 @@ def grid_search():
             model = PPO(**args)
             model.train()
 
-            episode.append(np.array(model.running_reward))
-            
-            
             date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
             filename = s.MAIN_DIR + '/data/' + parameters['env_name'][0] + '_' + date + '.log'
             log = args.copy()
@@ -59,14 +61,13 @@ def grid_search():
             log['episode_reward'] = model.episode_reward
             log['date'] = date
             log['model_path'] = ''
-            
             data.append(model.running_reward)
+
             model.close_session()
             del model
 
             with open(filename, 'w') as logfile:
                 logfile.write(json.dumps(log))
-
 
     return data
 
