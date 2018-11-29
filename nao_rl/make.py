@@ -14,12 +14,16 @@ def destroy_instances():
     time.sleep(1)
 
 
-def start_vrep(sim_port, path, exit_after_sim=False, headless=True):
+def start_vrep(sim_port, path, exit_after_sim=False, headless=True, verbose=False):
     """
     Launches a new V-REP instance using subprocess
     If you want to connect to an existing instance, use self.connect() with a correct port instead
         arguments:
-            [-h] : runs in headless mode (without GUI)
+            [sim_port]      : VREP simulation port, set by '-gREMOTEAPISERVERSERVICE_port_TRUE_TRUE'
+            [path]          : scene path to run
+            [exit_ater_sim] : corresponds to command line argument '-q' (exits after simulation)
+            [headless]      : corresponds to '-h' (runs without a GUI)
+            [verbose]       : suppress prompt messages
     """
 
     command = 'bash ' + s.VREP_DIR + '/vrep.sh'  + \
@@ -34,7 +38,10 @@ def start_vrep(sim_port, path, exit_after_sim=False, headless=True):
    
     # Call the process and start VREP
     DEVNULL = open(os.devnull, 'wb')
-    subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL)
+    if verbose:
+        subprocess.Popen(command.split())
+    else:
+        subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL) 
 
 
 def start_naoqi(ports):
@@ -85,6 +92,7 @@ def make(env_name, sim_port, nao_port=None, headless=True, reinit=False):
         if headless: time.sleep(1.5)
         else: time.sleep(5)
         env = NaoWalking2(s.LOCAL_IP, sim_port, nao_port, path)
+        env.agent.connect(env)
 
 
     elif env_name == 'nao_tracking':

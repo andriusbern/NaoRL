@@ -11,8 +11,7 @@ class VrepEnv(gym.Env):
     """ 
     Base class for all the Vrep gym environments
     Contains all the basic functions for:
-        - Object control and sensor information (getting and setting joint angles) inside vrep
-    Allows to control
+        - Object control and sensor information (getting and setting joint angles)
     """
 
     def __init__(self, address, port, path):
@@ -27,6 +26,7 @@ class VrepEnv(gym.Env):
         self.running        = False
         self.scene_loaded   = False
         self.headless       = False
+        self.start_stop_delay = .15
 
 
         self.modes = {'blocking'  : vrep.simx_opmode_blocking,  # Waits until the respose from vrep remote API is sent back
@@ -44,7 +44,7 @@ class VrepEnv(gym.Env):
         e = 0
         c_id = 0
         while e < self.max_attempts:  
-            c_id = vrep.simxStart(self.address, self.port, True, True, 5000, 0)
+            c_id = vrep.simxStart(self.address, self.port, True, True, 1000, 0)
             if c_id >= 0:
                 self.client_id = c_id
                 self.connected = True
@@ -52,7 +52,7 @@ class VrepEnv(gym.Env):
                 break
             else:
                 e += 1
-                print 'Could not connect to client, attempt {}/{}...'.format(e+1, self.max_attempts)
+                print 'Could not connect to client, attempt {}/{}...'.format(e, self.max_attempts)
                 time.sleep(1)
 
 
@@ -92,10 +92,12 @@ class VrepEnv(gym.Env):
         
         vrep.simxStartSimulation(self.client_id, vrep.simx_opmode_blocking)
         self.running = True
+        time.sleep(self.start_stop_delay)
 
     def stop_simulation(self):
         vrep.simxStopSimulation(self.client_id, vrep.simx_opmode_blocking)
         self.running = False
+        time.sleep(self.start_stop_delay)
 
     def step_simulation(self):
         """
@@ -106,11 +108,11 @@ class VrepEnv(gym.Env):
 
     def close(self):
         if self.running:      self.stop_simulation()
-        time.sleep(.2)
+        time.sleep(self.start_stop_delay)
         if self.scene_loaded: self.close_scene()
-        time.sleep(.2)
+        time.sleep(self.start_stop_delay)
         if self.connected:    self.disconnect()
-        time.sleep(.2)
+        time.sleep(self.start_stop_delay)
         
     
     #########################

@@ -6,7 +6,6 @@ import itertools, copy, time, datetime, pickle, json
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 """
 Environment ideas:
     Reward functions:
@@ -25,16 +24,16 @@ def grid_search():
 
     parameters = {'env_name'       : ['nao-bipedal2'],
                   'n_workers'      : [8],
-                  'max_episodes'   : [1000],
-                  'episode_length' : [1000],
-                  'batch_size'     : [2048],
-                  'epochs'         : [10],
-                  'epsilon'        : [.2],
+                  'max_episodes'   : [6500],
+                  'episode_length' : [2000],
+                  'batch_size'     : [2048, 4096],
+                  'epochs'         : [8],
+                  'epsilon'        : [.15],
                   'gamma'          : [.99],
                   'actor_layers'   : [[256, 256]],
-                  'critic_layers'  : [[128, 128],[128], [64, 64]],
-                  'actor_lr'       : [.000002],
-                  'critic_lr'      : [.00002]}
+                  'critic_layers'  : [[128, 128]],
+                  'actor_lr'       : [.00001, .000005],
+                  'critic_lr'      : [.00005]}
     
 
     values = tuple(parameters.values())
@@ -73,10 +72,10 @@ def grid_search():
 
 
 def write(filename, *args):
-    with open(filename, 'ab') as f:
-        f.writelines('\n')
+    with open(filename, 'ab') as file:
+        file.writelines('\n')
         for arg in args:
-            f.writelines('\n' + arg)
+            file.writelines('\n' + arg)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ class NaoWalking2(VrepEnv):
         self.active_joints = ["LLeg", "RLeg"]  # Joints, whose position should be streamed continuously
         self.body_parts = ['l_foot', 'r_foot', 'head'] # Body parts which position should be streamed continuously
               
-        # Action and state spaces
+        # Action and state space limits
         self.action_space = spaces.Box(low=np.dot(-1, np.ones(12)),
                                        high=np.dot(1, np.ones(12)),dtype=np.float32)  
 
@@ -73,21 +73,22 @@ class NaoWalking2(VrepEnv):
 
     def _make_action(self, action):
         """
-        Perform and action: increase the velocity of either 'HeadPitch' or 'HeadYaw'
+        Perform an action - move each joint by a specific amount
         """
 
         # Update velocities
         self.agent.move_joints(action/80)
 
+
     def step(self, action):
         """
-        Step the vrep simulation by one frame
+        Step the vrep simulation by one frame, make actions and observations and calculate the resulting 
+        rewards
         """
         self.steps += 1
         self._make_action(action) 
         self.step_simulation()
         self._make_observation()
-
         
         position = self.agent.get_position()
         orientation = self.agent.get_orientation()

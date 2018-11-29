@@ -29,7 +29,6 @@ def ball_tracking(im, resolution, display=None, draw=True):
     greenUpper = (64, 255, 255)
     scale = 1
 
-    
     hsv = cv.cvtColor(np.asarray(im), cv.COLOR_BGR2HSV)
     im = cv.cvtColor(np.asarray(im), cv.COLOR_RGB2BGR)
     small = cv.resize(hsv, (0,0), fx=scale, fy=scale) 
