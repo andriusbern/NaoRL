@@ -9,11 +9,12 @@ from gym import spaces
 import cv2 as cv
 
 # Local imports
-
 from nao_rl.environments import VrepEnv
-from nao_rl.utils import VirtualNAO, RealNAO
+from nao_rl.utils import VrepNAO
 from nao_rl.utils import Ball
 from nao_rl.utils import image_processing
+from nao_rl import settings
+
 
 class NaoTracking(VrepEnv):
     """ 
@@ -21,7 +22,13 @@ class NaoTracking(VrepEnv):
     The ball moves randomly within a specified area and the reward is proportional to the distance from
     the center of the ball to the center of NAO's vision sensor.
     """
-    def __init__(self, address, port, naoqi_port, path, window=None):
+    def __init__(self, address=None, port=None, naoqi_port=None, path=None, window=None):
+
+        if port is None:
+            port = settings.SIM_PORT
+        if address is None:
+            address = settings.LOCAL_IP
+
         VrepEnv.__init__(self, address, port, path)
 
         # Vrep
@@ -31,26 +38,21 @@ class NaoTracking(VrepEnv):
 
         # Objects
         self.ball  = Ball('Sphere1')
-        self.agent = VirtualNAO(address, naoqi_port)
-
-        # Connect to environment
-        self.agent.initialize()
-        
+        self.agent = VrepNAO(True)
+        self.active_joints = ['head']
+        self.body_parts = ['head']
 
         # Action and state spaces
         self.velocities = [0, 0]
         self.velocity_bounds = [-.02, .02]
-        self.action_space = spaces.Box(np.array([-0.002, -0.002]), np.array([+0.002, +0.002]))
+        self.action_space = spaces.Box(low=np.array([-0.002, -0.002]),
+                                       high=np.array([0.002, 0.002]),
+                                       dtype=np.float32)
 
-        low = np.array([
-            0,                       0,                        # Lower bounds for the coordinates of the center of the ball 
-            self.velocity_bounds[0], self.velocity_bounds[0]]) # Lower bounds for the velocities of the head motors
-        high = np.array([
-            1,                       1,                        # Upper bounds for the coordinates of the center of the ball 
-            self.velocity_bounds[1], self.velocity_bounds[1]]) # Upper bounds for the velocities of the head motors
-
-        self.observation_space = spaces.Box(low=low, high=high)
-        self.state = []
+        self.observation_space = spaces.Box(low=np.array([-np.inf] * 4),
+                                            high=np.array([np.inf] * 4),
+                                            dtype=np.float32)
+        self.state = np.zeros(14)
 
         # Simulations parameters
         self.done = False
@@ -61,9 +63,7 @@ class NaoTracking(VrepEnv):
         """
         Connects to vrep, loads the scene and initializes the posture of NAO
         """
-        self.close() # Reconnect
         self.connect()
-        self.load_scene(self.scene)
 
         # Window for displaying the camera image
         if self.window is not None:

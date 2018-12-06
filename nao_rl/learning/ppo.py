@@ -167,7 +167,7 @@ class PPO(object):
         """
         self.workers = []
         for i in range(self.n_workers):
-            env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
+            env = nao_rl.make(self.env_name, self.vrep_port, headless=False)
             self.vrep_port -= 1
             worker = Worker(env, self, i)
             worker.env.agent.connect(worker.env) ### IMPROVE

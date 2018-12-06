@@ -8,7 +8,10 @@ import subprocess, time, os
 import nao_rl.settings as s
 
 def destroy_instances():
-    print("Destroying all previous VREP and NaoQI instances...")
+    """
+    Destroys all the current instances of Vrep and Naoqi-bin
+    """
+    print "Destroying all previous VREP and NaoQI instances..."
     subprocess.Popen('pkill vrep'.split())
     subprocess.Popen('pkill naoqi-bin'.split())
     time.sleep(1)
@@ -30,18 +33,21 @@ def start_vrep(sim_port, path, exit_after_sim=False, headless=True, verbose=Fals
             ' -gREMOTEAPISERVERSERVICE_{}_TRUE_TRUE'.format(sim_port) # Start remote API at a specified port
 
     # Additional arguments
-    if headless:       command += ' -h'
-    if exit_after_sim: command += ' -q' 
-    command += ' -s'                     # Start sim 
+    if headless:
+        command += ' -h'
+    if exit_after_sim:
+        command += ' -q'
+
+    command += ' -s'                     # Start sim
     command += ' ' + path                # Scene name
     command += ' &'                      # Non-blocking call
-   
+
     # Call the process and start VREP
     DEVNULL = open(os.devnull, 'wb')
     if verbose:
         subprocess.Popen(command.split())
     else:
-        subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL) 
+        subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL)
 
 
 def start_naoqi(ports):
@@ -74,7 +80,7 @@ def make(env_name, sim_port, nao_port=None, headless=True, reinit=False):
     ### CUSTOM ENVIRONMENTS ###
     ###########################
 
-    if env_name == 'nao_bipedal':
+    if env_name == 'NaoBipedal':
         from nao_rl.environments import NaoWalking
         path = s.SCENES + '/nao_test.ttt'
 
@@ -84,7 +90,7 @@ def make(env_name, sim_port, nao_port=None, headless=True, reinit=False):
         else: time.sleep(5)
         env = NaoWalking(s.LOCAL_IP, sim_port, nao_port, path)
 
-    if env_name == 'nao-bipedal2':
+    if env_name == 'NaoBipedal-v2':
         from nao_rl.environments import NaoWalking2
         path = s.SCENES + '/nao_test2.ttt'
         print "Launching V-REP at port {}".format(sim_port)
@@ -95,7 +101,7 @@ def make(env_name, sim_port, nao_port=None, headless=True, reinit=False):
         env.agent.connect(env)
 
 
-    elif env_name == 'nao_tracking':
+    elif env_name == 'NaoTracking':
         from nao_rl.environments import NaoTracking
         path = s.SCENES + '/nao_ball.ttt'
         print "Launching V-REP at port {}".format(sim_port)

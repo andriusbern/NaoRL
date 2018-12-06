@@ -5,6 +5,7 @@ dist/
 .vscode/
 naorl/tests
 naorl/data
+logs/
 
 # .gitignore
 

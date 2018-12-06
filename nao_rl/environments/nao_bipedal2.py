@@ -15,7 +15,7 @@ from nao_rl import settings
 
 
 class NaoWalking2(VrepEnv):
-    """ 
+    """
     The goal of the agent in this environment is to learn how to walk
     """
     def __init__(self, address=None, port=None, naoqi_port=None, path=None):
@@ -34,7 +34,7 @@ class NaoWalking2(VrepEnv):
         # Agent
         self.agent = VrepNAO(True)
         self.active_joints = ["LLeg", "RLeg"]  # Joints, whose position should be streamed continuously
-        self.body_parts = ['l_foot', 'r_foot', 'head'] # Body parts which position should be streamed continuously
+        self.body_parts = ['RFoot', 'LFoot', 'Head'] # Body parts which position should be streamed continuously
               
         # Action and state space limits
         self.action_space = spaces.Box(low=np.dot(-1, np.ones(12)),
@@ -144,13 +144,12 @@ class NaoWalking2(VrepEnv):
 
 
 if __name__ == "__main__":
-    
     """
-    If called as a script this will initialize the scene in an open vrep instance 
+    If called as a script this will initialize the scene in an open vrep instance
     """
+
     # Environment and objects
     import nao_rl
     scene = settings.SCENES + '/nao_test2.ttt'
     env = nao_rl.make('nao-bipedal2', 19996, headless=False)
     env.run()
-    

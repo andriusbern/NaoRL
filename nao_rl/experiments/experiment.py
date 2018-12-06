@@ -23,7 +23,7 @@ def grid_search():
     number_of_repeats = 1 # Number of iterations per each combination of params
 
     parameters = {'env_name'       : ['nao-bipedal2'],
-                  'n_workers'      : [8],
+                  'n_workers'      : [2],
                   'max_episodes'   : [6500],
                   'episode_length' : [2000],
                   'batch_size'     : [2048, 4096],

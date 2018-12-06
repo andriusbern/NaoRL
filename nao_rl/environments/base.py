@@ -3,9 +3,10 @@
 @author: Andrius Bernatavicius, 2018
 """
 
+import time
+import gym
 from nao_rl.utils.vrep import vrep
-import gym, time
-import nao_rl.settings as s
+
 
 class VrepEnv(gym.Env):
     """ 
@@ -15,7 +16,7 @@ class VrepEnv(gym.Env):
     """
 
     def __init__(self, address, port, path):
-        
+
         self.address        = address # Local IP
         self.port           = port # Port for Remote API
         self.frames_elapsed = 0
@@ -37,13 +38,14 @@ class VrepEnv(gym.Env):
 
     def connect(self):
         """
-        Connect to a running instance of vrep at [self.address] and [self.port] and return the client_id
+        Connect to a running instance of vrep at [self.address]
+        and [self.port] and return the client_id
         """
         if self.connected:
-			raise RuntimeError('Client is already connected.')
+            raise RuntimeError('Client is already connected.')
         e = 0
         c_id = 0
-        while e < self.max_attempts:  
+        while e < self.max_attempts:
             c_id = vrep.simxStart(self.address, self.port, True, True, 1000, 0)
             if c_id >= 0:
                 self.client_id = c_id
@@ -72,6 +74,7 @@ class VrepEnv(gym.Env):
         vrep.simxLoadScene(self.client_id, path, 0, self.modes['blocking'])
         self.scene_loaded = True
 
+
     def close_scene(self):
         if not self.scene_loaded:
             raise RuntimeError('Scene is not loaded')
@@ -85,19 +88,22 @@ class VrepEnv(gym.Env):
         """
         vrep.simxSynchronous(self.client_id, True)
 
-        # Parameters
-        #self.set_boolean_parameter(vrep.sim_boolparam_realtime_simulation, True)
         if self.headless:
             self.set_boolean_parameter(vrep.sim_boolparam_threaded_rendering_enabled, True)
-        
+
         vrep.simxStartSimulation(self.client_id, vrep.simx_opmode_blocking)
         self.running = True
         time.sleep(self.start_stop_delay)
 
+
     def stop_simulation(self):
+        """
+        Stops the simulation automatically resetting it to initial state
+        """
         vrep.simxStopSimulation(self.client_id, vrep.simx_opmode_blocking)
         self.running = False
         time.sleep(self.start_stop_delay)
+
 
     def step_simulation(self):
         """
@@ -106,44 +112,52 @@ class VrepEnv(gym.Env):
         vrep.simxSynchronousTrigger(self.client_id)
         self.frames_elapsed += 1
 
+
     def close(self):
-        if self.running:      self.stop_simulation()
+        if self.running:
+            self.stop_simulation()
         time.sleep(self.start_stop_delay)
-        if self.scene_loaded: self.close_scene()
+        if self.scene_loaded:
+            self.close_scene()
         time.sleep(self.start_stop_delay)
-        if self.connected:    self.disconnect()
+        if self.connected:
+            self.disconnect()
         time.sleep(self.start_stop_delay)
-        
-    
+
     #########################
     ## Getters and setters ##
     #########################
 
     def set_boolean_parameter(self, parameter_id, value):
-        """ 
+        """
         Sets a parameter of the simulation based on the parameter id
         """
-        vrep.simxSetBooleanParameter(self.client_id, 
-                                    parameter_id, value,
-                                    vrep.simx_opmode_blocking)[0]
+        return vrep.simxSetBooleanParameter(self.client_id,
+                                            parameter_id, value,
+                                            vrep.simx_opmode_blocking)[0]
 
     def get_boolean_parameter(self, parameter_id):
         """
         Get the state of the parameter identified by [parameter_id]
         """
-        return vrep.simxGetBooleanParameter(self.client_id, 
+        return vrep.simxGetBooleanParameter(self.client_id,
                                             parameter_id,
                                             vrep.simx_opmode_blocking)[0]
 
     def set_float_parameter(self, parameter_id, value):
-        vrep.simxSetFloatingParameter(self.client_id,
-                                      parameter_id, 
-                                      value,
-                                      vrep.simx_opmode_blocking)[0]
+        """
+        Sets a float parameter
+        """
+        return vrep.simxSetFloatingParameter(self.client_id,
+                                             parameter_id,
+                                             value,
+                                             vrep.simx_opmode_blocking)[0]
 
     def get_handle(self, name):
-        """ Get a handle of an object identified by [name] in vrep simulation """
-        return vrep.simxGetObjectHandle(self.client_id, 
+        """
+        Get a handle of an object identified by [name] in vrep simulation
+        """
+        return vrep.simxGetObjectHandle(self.client_id,
                                         name,
                                         vrep.simx_opmode_blocking)[1]
 
@@ -158,15 +172,15 @@ class VrepEnv(gym.Env):
         vrep.simxPauseCommunication(self.client_id, False)
 
         return handles
-    
+
     def set_joint_position(self, handle, angle):
         """
-        Set a simulated joint identified by a [handle] to a specific [angle] 
+        Set a simulated joint identified by a [handle] to a specific [angle]
         """
-        vrep.simxSetJointTargetPosition(    self.client_id, 
-                                            handle, 
-                                            angle, 
-                                            vrep.simx_opmode_oneshot)
+        vrep.simxSetJointTargetPosition(self.client_id,
+                                        handle,
+                                        angle,
+                                        vrep.simx_opmode_oneshot)
 
     def set_joint_position_multiple(self, handles, angles):
         """
@@ -183,26 +197,25 @@ class VrepEnv(gym.Env):
         Get the current angle of a joint identified by [handle]
         By default uses a blocking call
         """
-        return vrep.simxGetJointPosition(   self.client_id, 
-                                            handle,
-				                            self.modes[mode])[0]
+        return vrep.simxGetJointPosition(self.client_id,
+                                         handle,
+                                         self.modes[mode])[0]
 
     def get_vision_image(self, handle, mode='blocking'):
         """
         Get the image from a virtual image sensor
         """
         res, resolution, image = vrep.simxGetVisionSensorImage(self.client_id,
-                                                                handle,
-                                                                0,
-                                                                self.modes[mode])
+                                                               handle,
+                                                               0,
+                                                               self.modes[mode])
         return res, resolution, image
 
-    
     def get_object_position(self, handle, mode='blocking'):
         """
         Get the position of an object relative to the floor
         """
-        return vrep.simxGetObjectPosition(self.client_id, 
+        return vrep.simxGetObjectPosition(self.client_id,
                                           handle,
                                           -1,
                                           self.modes[mode])[1]
@@ -223,9 +236,9 @@ class VrepEnv(gym.Env):
         Get the angular orientation of the object in vrep
         """
         return vrep.simxGetObjectOrientation(self.client_id,
-                                             handle, 
+                                             handle,
                                              -1,
-                                            self.modes[mode])[1]
+                                             self.modes[mode])[1]
 
     def set_object_orientation(self, handle, orientation):
         """
@@ -236,7 +249,4 @@ class VrepEnv(gym.Env):
                                       -1,
                                       orientation,
                                       vrep.simx_opmode_oneshot)
-
-
-        
 

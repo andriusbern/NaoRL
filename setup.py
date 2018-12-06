@@ -4,9 +4,9 @@ import time, os
 #################
 # Configure paths
 
-separator = "\n================================================================\n"
+SEPARATOR = "\n================================================================\n"
 
-print separator, "Installation script for the 'nao_rl' package...", separator
+print SEPARATOR, "Installation script for the 'nao_rl' package...", SEPARATOR
 
 if not os.path.isfile(os.getcwd() + '/settings.txt'):
 
@@ -15,67 +15,65 @@ if not os.path.isfile(os.getcwd() + '/settings.txt'):
     paths = []
 
     # VREP
-    print separator
+    print SEPARATOR
     while True:
         vrep_dir = raw_input("\nPlease paste the path to your 'VREP' folder (Version 3.4.0)...\n")
         if os.path.exists(vrep_dir):
             if os.path.isfile(vrep_dir + '/vrep.sh'):
                 print 'Directory added to settings.'
                 paths.append(vrep_dir)
-                break  
+                break
             else:
                 print "'vrep.sh' is not in the provided directory..."
-        else: 
+        else:
             print "Invalid directory"
 
     # Choregraphe
-    print separator
+    print SEPARATOR
     while True:
         chore_dir = raw_input("\nPlease paste the path to your 'Choregraphe' folder...\n")
         if os.path.exists(chore_dir):
             if os.path.isfile(chore_dir + '/bin/naoqi-bin'):
                 print 'Directory added to settings.'
                 paths.append(chore_dir+'/bin')
-                break  
+                break
             else:
                 print "'naoqi-bin' is not in the provided directory..."
-        else: 
+        else:
             print "Invalid directory"
 
     # Naoqi-SDK
-    print separator
+    print SEPARATOR
     while True:
         naoqi_dir = raw_input("\nPlease paste the path to your 'Naoqi-Python SDK' folder (Version 2.1.2)...\n")
         if os.path.exists(naoqi_dir):
             if os.path.isfile(naoqi_dir + '/naoqi.py'):
                 print 'Directory added to settings.'
                 paths.append(naoqi_dir)
-                break  
+                break
             else:
                 print "'naoqi.py' is not in the provided directory..."
-        else: 
+        else:
             print "Invalid directory"
 
     # Create a settings file with directories
     with open('settings.txt', 'wb') as file:
         for line in paths:
             file.writelines(line+'\n')
-    
+
     # Add directories to settings.py
     with open("nao_rl/settings.py", "a") as myfile:
         myfile.write("\nVREP_DIR = {}".format(vrep_dir))
         myfile.write("\nCHOREGRAPHE_DIR = {}".format(chore_dir))
 
 
-    
-    
     # Add naoqi to the PYTHONPATH of the virtualenv (by creating a '.pth' file in site-packages folder)
     path = os.getcwd() + '/env/lib/python2.7/site-packages/naoqi.pth'
     with open(path, 'wb') as file2:
         file2.write(paths[2])
 
 else:
-    print separator, "File 'settings.txt' already exists."
+    print SEPARATOR, "File 'settings.txt' already exists."
 
 
 ######################
@@ -89,7 +87,7 @@ packages = ['numpy',
             'Pillow',
             'matplotlib']
 
-print separator, separator
+print SEPARATOR, SEPARATOR
 print "Paths added successfully..."
 print "Now the following required Python packages are going to be installed in the virtual environment:\n"
 print packages
@@ -110,8 +108,4 @@ setup(
     install_requires=packages
 )
 
-print separator, "Installation complete.\n"
-
-
-
-
+print SEPARATOR, "Installation complete.\n"
