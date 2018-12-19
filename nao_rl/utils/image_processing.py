@@ -15,7 +15,8 @@ def resize(image, dim):
     """
     Resize an image
     """
-    if type(dim) is not tuple: dim = tuple(dim)
+    if not isinstance(dim, tuple):
+        dim = tuple(dim)
     
     resized = cv.resize(image, dim)
     return resized
@@ -23,14 +24,14 @@ def resize(image, dim):
 
 def ball_tracking(im, resolution, display=None, draw=True):
     """
-    Tracks a green ball
+    Locates a green object in an image and draws a circle around it
     """ 
     greenLower = (29, 86, 6)
     greenUpper = (64, 255, 255)
     scale = 1
 
-    hsv = cv.cvtColor(np.asarray(im), cv.COLOR_BGR2HSV)
-    im = cv.cvtColor(np.asarray(im), cv.COLOR_RGB2BGR)
+    hsv = cv.cvtColor(np.asarray(im, dtype=np.uint8), cv.COLOR_BGR2HSV)
+    im = cv.cvtColor(np.asarray(im, dtype=np.uint8), cv.COLOR_RGB2BGR)
     small = cv.resize(hsv, (0,0), fx=scale, fy=scale) 
     
     # Create a mask for the green areas of the image

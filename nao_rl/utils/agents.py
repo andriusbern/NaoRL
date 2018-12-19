@@ -3,14 +3,12 @@
 @author: Andrius Bernatavicius, 2018
 """
 
-from naoqi import ALProxy
 import time, array
 import numpy as np
 
 ############
 ## AGENTS ##
 ############
-
 
 class NAO(object):
     """
@@ -25,6 +23,7 @@ class NAO(object):
         # Motion and posture proxies of the virtual Nao created by naoqi-bin
         self.motion_proxy = None
         self.posture_proxy = None
+        self.stiffness = .8  # Stiffness of active motors
 
         ####  Joints
         # Ordering corresponds to the one provided by Aldebaran Robotics
@@ -68,8 +67,8 @@ class RealNAO(NAO):
     Includes vision, gyroscope information
     """
     def __init__(self, ip, port):
-        NAO.__init__(self, ip, port)
         
+        NAO.__init__(self, ip, port)
         self.video_client = None
 
 
@@ -78,7 +77,7 @@ class RealNAO(NAO):
         Connect to NaoQI Motion, Posture and Vision proxies
 
         Connects to the vision proxy with specified parameters
-
+        ---
         Resolutions:
             Value:    Resolution:
             8  kQQQQVGA  40x30
@@ -89,19 +88,17 @@ class RealNAO(NAO):
             3  k4VGA     1280x960
         """
 
-        stiffness = .8
-
+        from naoqi import ALProxy
         # Motion
         self.motion_proxy = ALProxy("ALMotion", self.ip, self.port)
         self.posture_proxy = ALProxy("ALRobotPosture", self.ip, self.port)
-        self.motion_proxy.stiffnessInterpolation(self.active_joints, 1, stiffness)
+        self.motion_proxy.stiffnessInterpolation(self.active_joints, 1, self.stiffness)
         self.posture_proxy.goToPosture("Stand", 1)
 
         # Vision
         self.camera_proxy = ALProxy('ALVideoDevice', self.ip, self.port)
         self.video_client = self.camera_proxy.subscribe("python_client", resolution, colorSpace, fps)
 
-    # Motion
  
     def get_angles(self, joints="Body", use_sensors=True):
         """
@@ -314,17 +311,18 @@ class VirtualNAO(NAO):
     ## VISION ##
     ############
 
-    def get_image(self, attempts):
+    def get_image(self):
         """
         Retrieves an image from NAOs vision sensor in vrep
         """
-        image = []
         _, resolution, raw_image = self.env.get_vision_image(self.camera_handle)
-        if len(image) == 0:
+        if len(raw_image) == 0:
             raise RuntimeError('The image could not be retrieved from {}'.format(self.camera_name))
         else:
-            image = np.frombuffer(raw_image, dtype=np.uint8)
-            image = np.reshape(image, (resolution[0], resolution[1], 3))
+            image = np.array(raw_image) + 128 # Reverse list and make values [0;255]
+            # Reshape and flip the image vertically
+            image = np.flip(np.reshape(image, (resolution[1], resolution[0], 3)), 1) 
+            image = np.flip(image)
 
         return image, resolution
 
@@ -350,10 +348,12 @@ class VrepNAO(VirtualNAO):
         self.active_joints = None
         self.active_joint_position = None
         self.streaming = streaming_mode
-
-        # Body part position tracking
-        self.body_parts   = [] 
-        self.part_handles = {}
+        
+        # Body part position tracking and collisions
+        self.feet_collision_names = ['Collision', 'Collision0'] # Right / left foot
+        self.body_parts   = [] # List of tracked body parts
+        self.part_handles = {} # Handles of tracked body parts
+        
 
     def connect(self, env, position=True, orientation=True):
         """
@@ -365,6 +365,10 @@ class VrepNAO(VirtualNAO):
         self.handle = self.env.get_handle(self.name)
         _, self.active_joints = self.select_joints(env.active_joints)
         self.active_joint_position = np.zeros(len(self.active_joints))
+
+        # Camera
+        self.handle = self.env.get_handle(self.name)
+        self.camera_handle = self.env.get_handle(self.camera_name)
 
         # Collect initial positional parameters
         self.initial_nao_position = self.env.get_object_position(self.handle)
@@ -442,7 +446,7 @@ class VrepNAO(VirtualNAO):
         else:
             angles = [self.env.get_joint_angle(handle) for handle in self.active_joints]
 
-        return np.zeros(angles)
+        return np.array(angles)
 
     def get_body_part_position(self, part):
         """
@@ -460,9 +464,9 @@ class VrepNAO(VirtualNAO):
             part = self.part_handles[part]
 
         if self.streaming:
-            return self.env.get_object_orientation(part, 'buffer')
+            return np.array(self.env.get_object_orientation(part, 'buffer'))
         else:
-            return self.env.get_object_orientation(part)
+            return np.array(self.env.get_object_orientation(part))
 
     def get_position(self, part=None):
         """
@@ -488,3 +492,10 @@ class VrepNAO(VirtualNAO):
         Reinitializes the body position
         """
         self.active_joint_position = np.zeros(len(self.active_joints))  
+
+    def check_collisions(self):
+        
+        right = self.env.read_collision(self.feet_collision_names[0])
+        left  = self.env.read_collision(self.feet_collision_names[1])
+
+        return [right, left]

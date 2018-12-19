@@ -15,12 +15,11 @@ class VrepEnv(gym.Env):
         - Object control and sensor information (getting and setting joint angles)
     """
 
-    def __init__(self, address, port, path):
+    def __init__(self, address, port):
 
         self.address        = address # Local IP
         self.port           = port # Port for Remote API
         self.frames_elapsed = 0
-        self.path           = path
         self.max_attempts   = 10
         self.client_id      = None
         self.connected      = False
@@ -50,7 +49,7 @@ class VrepEnv(gym.Env):
             if c_id >= 0:
                 self.client_id = c_id
                 self.connected = True
-                print 'Connection to client successful. IP: {}; port: {}, client_id: {}'.format(self.address, self.port, c_id)
+                print 'Connection to client successful. IP: {}, port: {}, client id: {}'.format(self.address, self.port, c_id)
                 break
             else:
                 e += 1
@@ -81,7 +80,7 @@ class VrepEnv(gym.Env):
         vrep.simxCloseScene(self.client_id, self.modes['blocking'])
         self.scene_loaded = False
 
-
+    
     def start_simulation(self):
         """
         Starts the simulation and sets the according parameters
@@ -199,7 +198,7 @@ class VrepEnv(gym.Env):
         """
         return vrep.simxGetJointPosition(self.client_id,
                                          handle,
-                                         self.modes[mode])[0]
+                                         self.modes[mode])[1]
 
     def get_vision_image(self, handle, mode='blocking'):
         """
@@ -250,3 +249,33 @@ class VrepEnv(gym.Env):
                                       orientation,
                                       vrep.simx_opmode_oneshot)
 
+    def get_children(self, handle):
+        """
+        Returns a list of handles of all the child objects of a specified object
+        """
+        child_handles = []
+        index = 0
+        while True:
+            child_handle = vrep.simxGetObjectChild(self.client_id,
+                                                   handle,
+                                                   index,
+                                                   self.modes['blocking'])
+            if child_handle == -1:
+                break
+            child_handles.append(child_handle)
+            index += 1
+
+        return child_handles
+
+
+    def read_collision(self, collision_name):
+        """
+        Reads a collision of a collision object
+        The collision interaction has to be created manually in the VREP scene editor
+        Returns a boolean value of whether collision is present
+        """
+        handle = vrep.simxGetCollisionHandle(self.client_id, collision_name, self.modes['blocking'])[1]
+        collision_status = vrep.simxReadCollision(self.client_id, handle, self.modes['blocking'])[1]
+
+        return collision_status
+    

@@ -27,7 +27,7 @@ class Ball:
         self.handle = self.env.get_handle(self.name)
         self.initial_position = self.get_position()
         self.position = self.initial_position
-        self.update_position()
+        # self.update_position()
 
     def get_position(self):
         return self.env.get_object_position(self.handle)
@@ -61,3 +61,15 @@ class Ball:
         self.position = self.initial_position
         self.reset_position()
         
+    def calculate_force(self):
+        pass
+
+    def update_position(self):
+        pass
+
+    def start_orbiting(self):
+        """
+        Starts orbiting from a random position in [y,z] plane with a random initial velocity
+        Orbits around the center of NAO's initial visual field
+
+        """

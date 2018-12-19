@@ -22,18 +22,18 @@ def grid_search():
     # PARAMETERS
     number_of_repeats = 1 # Number of iterations per each combination of params
 
-    parameters = {'env_name'       : ['nao-bipedal2'],
-                  'n_workers'      : [2],
+    parameters = {'env_name'       : ['NaoBalancing'],
+                  'n_workers'      : [4],
                   'max_episodes'   : [6500],
                   'episode_length' : [2000],
-                  'batch_size'     : [2048, 4096],
+                  'batch_size'     : [2000],
                   'epochs'         : [8],
-                  'epsilon'        : [.15],
-                  'gamma'          : [.99],
+                  'epsilon'        : [.2],
+                  'gamma'          : [.995],
                   'actor_layers'   : [[256, 256]],
-                  'critic_layers'  : [[128, 128]],
-                  'actor_lr'       : [.00001, .000005],
-                  'critic_lr'      : [.00005]}
+                  'critic_layers'  : [[256, 256]],
+                  'actor_lr'       : [.000001],
+                  'critic_lr'      : [.000002]}
     
 
     values = tuple(parameters.values())

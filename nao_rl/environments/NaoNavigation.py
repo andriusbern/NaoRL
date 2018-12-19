@@ -9,7 +9,7 @@ from gym import spaces
 
 """
 ##################
-## NOT FINISHED ##
+##  Deprecated  ##
 ##################
 """
 

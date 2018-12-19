@@ -2,8 +2,6 @@
 Author: Andrius Bernatavicius, 2018
 
 Threaded implementation of PPO
-Based on code by MorvanZhou
-https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/tree/master/contents/12_Proximal_Policy_Optimization
 """
 
 import tensorflow as tf
@@ -41,7 +39,6 @@ class PPO(object):
         self.verbose = True
 
         # Threading and events
-
         self.sess = tf.Session()
         self.update_event = None
         self.rollout = None
@@ -167,14 +164,12 @@ class PPO(object):
         """
         self.workers = []
         for i in range(self.n_workers):
-            env = nao_rl.make(self.env_name, self.vrep_port, headless=False)
+            env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
             self.vrep_port -= 1
             worker = Worker(env, self, i)
-            worker.env.agent.connect(worker.env) ### IMPROVE
             self.workers.append(worker)
 
     def train(self):
-
         self.update_event, self.rollout = threading.Event(), threading.Event()
         self.tf_coordinator = tf.train.Coordinator()
         self.queue = queue.Queue()     
@@ -255,8 +250,7 @@ class Worker(object):
                         self.trainer.rollout.clear()       
                         self.trainer.update_event.set()          
                     
-                    if done:
-                        break
+                    break
           
             if len(self.trainer.running_reward) == 0: 
                 self.trainer.running_reward.append(episode_reward)
