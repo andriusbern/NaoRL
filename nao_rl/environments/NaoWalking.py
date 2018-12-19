@@ -19,40 +19,41 @@ class NaoWalking(VrepEnv):
     The goal of the agent in this environment is to learn how to walk
     Reward function is proportional to the 
     """
-    def __init__(self, address, port, naoqi_port, path):
-        VrepEnv.__init__(self, address, port, path)
+    def __init__(self, address=None, port=None, naoqi_port=None):
+
+        if port is None:
+            port = settings.SIM_PORT
+        if address is None:
+            address = settings.LOCAL_IP
+        
+        VrepEnv.__init__(self, address, port)
 
         # Vrep
-        self.scene = path
-        self.initialize() # Connect to vrep, load the scene and initialize the agent
+        self.connect() # Connect to vrep, load the scene and initialize the agent
 
         # Agent
         self.agent = VrepNAO(True)
-        #self.agent.initialize()
-        self.active_joints = ["LLeg", "RLeg"]
+        self.active_joints = ["LLeg", "RLeg"]        # Joints, whose position should be streamed continuously
+        self.body_parts = ['RFoot', 'LFoot', 'Head'] # Body parts whose position should be streamed continuously
               
         # Action and state spaces
         self.velocities = np.zeros(12)
-        self.velocity_bounds = [-.02, .02]
-        self.action_space = spaces.Box(low=np.dot(-.005, np.ones(12)),
-                                       high=np.dot(.005, np.ones(12)))  
+        self.velocity_bounds = [-1, 1]
+        self.action_space = spaces.Box(low=np.dot(-1, np.ones(12)),
+                                       high=np.dot(1, np.ones(12)), dtype=np.float32)  
 
-        low = np.array([-np.inf] * 24)
-        high = np.array([np.inf] * 24)
+        low = np.array([-np.inf] * 16)
+        high = np.array([np.inf] * 16)
 
-        self.observation_space = spaces.Box(low=low, high=high)
-        self.state = np.zeros(24)
+        self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        self.state = np.zeros(16)
 
         # Simulations parameters
+        self.fall_threshold = np.pi/5
+        self.previous_feet_position = [0, 0]
+        self.previous_body_position = 0
         self.done = False
-        self.steps = 0
 
-
-    def initialize(self):
-        """
-        Connects to vrep, loads the scene and initializes the posture of NAO
-        """
-        self.connect()
 
     def _make_observation(self):
         """
@@ -60,42 +61,96 @@ class NaoWalking(VrepEnv):
         and get current joint angles from motionProxy.
         """
         
-        self.state[0:12] = self.agent.get_angles()
-        self.state[12::] = self.velocities
+        joint_angles = self.agent.get_angles()
+        orientation = self.agent.get_orientation()[0:2]
+        collisions = self.agent.check_collisions()
+        self.state = np.hstack([joint_angles, orientation, int(collisions[0]), int(collisions[1])])           # Angles of each joint
 
 
     def _make_action(self, action):
         """
         Perform and action: increase the velocity of either 'HeadPitch' or 'HeadYaw'
         """
-
-        # Update velocities
-        self.velocities = np.add(self.velocities, action) # Add action to current velocities
-        self.velocities = np.clip(self.velocities, self.velocity_bounds[0], self.velocity_bounds[1]) # Clip to bounds
-        self.agent.move_joints(self.velocities)
+        self.agent.move_joints(action/40)
+        # # Update velocities
+        # self.velocities = np.add(self.velocities, action) # Add action to current velocities
+        # self.velocities = np.clip(self.velocities, self.velocity_bounds[0], self.velocity_bounds[1]) # Clip to bounds
+        # self.agent.move_joints(self.velocities)
 
     def step(self, action):
         """
         Step the vrep simulation by one frame
         """
-        self.steps += 1
+
+        previous_state = self.state
         self._make_action(action) 
         self.step_simulation()
-        self._make_observation()
-
-        position = self.agent.get_position()
-        orientation = self.agent.get_orientation()
-
-    
-        pos = (position[0] - self.agent.initial_nao_position[0])
-        orient = (1 - (abs(orientation[0]) + abs(orientation[1])/2)/2)
+        self._make_observation() # Update state
         
-        reward = pos * orient
-        # print(pos, orient, reward)
+        ###################
+        ### Reward function
+
+        body_position = self.agent.get_position()            # x,y,z coordinates of the agent
+        r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
+        roll, pitch = self.state[12:14]                      # Roll and pitch of the agent's convex hull
+
+        # Staying upright
+        posture = 0
+        if abs(roll) > abs(previous_state[12]):
+            posture -= .1
+        else:
+            posture += .125
+
+        if abs(pitch) > abs(previous_state[13]):
+            posture -= .1
+        else:
+            posture += .125
         
-        if orientation[0] < -np.pi/3 or orientation[0] > np.pi/3 or orientation[1] < -np.pi/3 or orientation[1] > np.pi/3:
-            reward -= 100
+        if abs(roll) < .125 and abs(pitch) < .125:
+            posture += .1
+            # Lifting feet while upright
+            collisions = np.count_nonzero(self.state[14::])
+            posture = (2 - collisions) * .3
+
+        # Hull location
+        if body_position[0] > self.previous_body_position: 
+            hull = .2
+        else:
+            hull = -.2
+        self.previous_body_position = body_position[0]
+
+        """
+        STATE SPACE:
+        include:
+            1. Angular velocity of the torso (also normal velocity?) both can be obtained through gyro and accelerometer
+            2. Change to orientation of the torso instead of convex hull
+            3. 
+        """
+
+        # Feet distance
+        # Use multiplicative reward?
+        # Change in feet position along the X axis
+        # pos_lfoot = self.agent.get_position('LFoot')[0]
+        # pos_rfoot = self.agent.get_position('RFoot')[0]
+        # distance_lfoot = (pos_lfoot - self.previous_feet_position[0])
+        # distance_rfoot = (pos_rfoot - self.previous_feet_position[1])
+        # if self.previous_feet_position[0] != 0:
+        #     feet_distance = (distance_lfoot + distance_rfoot) * 100
+        # else:
+        #     feet_distance = 0
+
+        # self.previous_feet_position = [pos_lfoot, pos_rfoot]
+
+        base = .05
+        reward = base + posture + hull
+
+        # End condition
+        if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
+            reward -= 2
             self.done = True 
+
+        # print('Posture: {} \n Hull: {}'.format(posture, hull))
+        # print('Total reward: {}'.format(reward))
 
         return self.state, reward, self.done, {}
 
@@ -103,36 +158,35 @@ class NaoWalking(VrepEnv):
         """
         Reset the environment to default state and return the first observation
         """ 
-        # Reset state
-        # Initial position
         
         self.stop_simulation()
-        time.sleep(.2)
+        self.agent.reset_position()
         self.start_simulation()
-        time.sleep(.2)
-    
-        if self.steps > 1:
-            self.agent.active_joint_position = np.zeros(len(self.agent.active_joint_position))
-
         self.done = False
-        self.velocities = np.zeros(12)
-        self.state = np.zeros(24)
-
-        # Make first observation
+        self.state = np.zeros(16)
         self.step_simulation()
         self._make_observation()
         return np.array(self.state)
 
     def run(self):
         """
-        Run the test simulation without any learning algorithm
+        Run the test simulation without any learning algorithm for debugging purposes
         """
-        self.start_simulation()
-        done = False
-        while not done:
-            _, _, done, _ = self.step(self.action_space.sample())
+        self.reset()
+        t = 0
+        while t < 10:
+            self.done = False
+            self.start_simulation()
+            while not self.done:
+                raw_input("Press Enter to continue...")
+                action = self.action_space.sample()
+                print(action)
+                state, reward, self.done, _ = self.step(action)
+                print('Current state:\n angles: {}'.format(state))
+                print('Reward: {}'.format(reward))
 
-        self.stop_simulation()
+            self.stop_simulation()
+            t += 1
 
 
 if __name__ == "__main__":
@@ -140,9 +194,9 @@ if __name__ == "__main__":
     """
     If called as a script this will initialize the scene in an open vrep instance 
     """
+
     # Environment and objects
-    scene = settings.SCENES + '/nao_walk.ttt'
-    env = NaoWalking(settings.LOCAL_IP, settings.SIM_PORT, settings.NAO_PORT, scene)
-    env.agent.connect_env(env)
+    import nao_rl
+    # scene = settings.SCENES + '/nao_test2.ttt'
+    env = nao_rl.make('NaoWalking', headless=False)
     env.run()
-    

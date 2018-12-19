@@ -89,11 +89,11 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
 
     if env_name == 'NaoWalking':
         from nao_rl.environments import NaoWalking
-        path = s.SCENES + '/nao_test.ttt'
+        path = s.SCENES + '/nao_test2.ttt'
         start_vrep(sim_port, path, headless=headless)
         if headless: time.sleep(1.5)
         else: time.sleep(5)
-        env = NaoWalking(s.LOCAL_IP, sim_port, nao_port, path)
+        env = NaoWalking(s.LOCAL_IP, sim_port, nao_port)
         env.agent.connect(env) # Connect the agent to the environment
 
     elif env_name == 'NaoBalancing':
@@ -102,7 +102,7 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
         start_vrep(sim_port, path, headless=headless)
         if headless: time.sleep(1.5)
         else: time.sleep(5)
-        env = NaoBalancing(s.LOCAL_IP, sim_port, nao_port, path)
+        env = NaoBalancing(s.LOCAL_IP, sim_port, nao_port)
         env.agent.connect(env)
 
     elif env_name == 'NaoTracking':
@@ -111,7 +111,7 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
         start_vrep(sim_port, path, headless=headless)
         if headless: time.sleep(1.5)
         else: time.sleep(5)
-        env = NaoTracking(s.LOCAL_IP, sim_port, nao_port, path)
+        env = NaoTracking(s.LOCAL_IP, sim_port, nao_port)
         env.agent.connect(env)
 
     else:

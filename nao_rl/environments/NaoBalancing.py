@@ -18,7 +18,7 @@ class NaoBalancing(VrepEnv):
     """
     The goal of the agent in this environment is to learn how to walk
     """
-    def __init__(self, address=None, port=None, naoqi_port=None, path=None):
+    def __init__(self, address=None, port=None, naoqi_port=None):
 
         if port is None:
             port = settings.SIM_PORT
@@ -28,7 +28,6 @@ class NaoBalancing(VrepEnv):
         VrepEnv.__init__(self, address, port)
 
         # Vrep
-        self.scene = path
         self.initialize()  # Connect to vrep, load the scene and initialize the agent
 
         # Agent
@@ -49,14 +48,13 @@ class NaoBalancing(VrepEnv):
         #    - Roll and pitch of the convex hull of the body of the whole robot [2]
         #    - Collision between the floor and each foot [2]
         self.state = np.zeros(16)
+        self.previous_feet_position = [0, 0]
 
         # The environment resets if roll or pitch is above this threshold        
         self.fall_threshold = np.pi/5
 
         # Simulation parameters
-        self.previous_orientation = [0, 0] # Used for reward calculation (roll, pitch of the previous frame)
         self.done = False
-        self.steps = 0
 
     def initialize(self):
         """
@@ -90,15 +88,24 @@ class NaoBalancing(VrepEnv):
         Step the vrep simulation by one frame, make actions and observations and calculate the resulting 
         rewards
         """
-        self.steps += 1
+
+        previous_state = self.state
         self._make_action(action) 
         self.step_simulation()
-        self._make_observation()
+        self._make_observation() # Update state
         
-        position = self.agent.get_position()
-        roll, pitch = self.agent.get_orientation()[0:2]
+        ###################
+        ### Reward function
 
-        orientation_score = (abs(roll) + abs(pitch)) / 2
+        body_position = self.agent.get_position()            # x,y,z coordinates of the agent
+        r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
+        roll, pitch = self.state[12:14]                      # Roll and pitch of the agent's convex hull
+
+        # Change in feet position along the X axis
+        pos_lfoot = self.agent.get_position('LFoot')[0]
+        pos_rfoot = self.agent.get_position('RFoot')[0]
+        distance_lfoot = (pos_lfoot - self.previous_feet_position[0])
+        distance_rfoot = (pos_rfoot - self.previous_feet_position[1])
 
         #### Function 1 
         # pos = (position[0] - self.agent.initial_nao_position[0])
@@ -115,6 +122,7 @@ class NaoBalancing(VrepEnv):
 
 
         # #### Function 2
+        # orientation_score = (abs(roll) + abs(pitch)) / 2
         # reward = 0
         # # Include negative rewards
         # orientation_difference = abs(orientation_score - self.previous_orientation)
@@ -133,23 +141,23 @@ class NaoBalancing(VrepEnv):
         #### Function 3
         # Staying upright
         reward = 0.05 # Default reward for each step
-        if abs(roll) > abs(self.previous_orientation[0]):
+        if abs(roll) > abs(self.previous_state[12]):
             reward -= .1
         else:
             reward += .125
 
-        if abs(pitch) > abs(self.previous_orientation[1]):
+        if abs(pitch) > abs(self.previous_state[13]):
             reward -= .1
         else:
             reward += .125
         
-        if roll < .1 and pitch < .1:
-            reward += .2
+        # if roll < .1 and pitch < .1:
+        #     reward += .2
 
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
-            reward -= 1
+            reward -= 2
             self.done = True 
-        self.previous_orientation = [roll, pitch]
+        self.previous_feet_position = [pos_lfoot, pos_rfoot]
         
 
         return self.state, reward, self.done, {}
@@ -159,7 +167,6 @@ class NaoBalancing(VrepEnv):
         Reset the environment to default state and return the first observation
         """ 
 
-        # Initial position
         self.stop_simulation()
         self.agent.reset_position()
         self.start_simulation()
