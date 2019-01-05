@@ -80,12 +80,8 @@ else:
 # Package installation
 packages = ['numpy',
             'tensorflow',
-            'keras',
             'gym',
-            'keras-rl',
-            'opencv-python',
-            'Pillow',
-            'matplotlib']
+            'opencv-python']
 
 print SEPARATOR, SEPARATOR
 print "Paths added successfully..."

@@ -11,7 +11,7 @@ import gym
 import os
 import nao_rl
 
-GAME = 'NaoWalking'
+GAME = 'NaoBalancing'
 RENDER = True
 
 OUTPUT_GRAPH = False

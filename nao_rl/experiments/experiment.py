@@ -22,7 +22,7 @@ def grid_search():
     # PARAMETERS
     number_of_repeats = 1 # Number of iterations per each combination of params
 
-    parameters = {'env_name'       : ['NaoWalking'],
+    parameters = {'env_name'       : ['NaoBalancing'],
                   'n_workers'      : [4],
                   'max_episodes'   : [6500],
                   'episode_length' : [2000],

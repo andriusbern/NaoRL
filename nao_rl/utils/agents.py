@@ -319,10 +319,12 @@ class VirtualNAO(NAO):
         if len(raw_image) == 0:
             raise RuntimeError('The image could not be retrieved from {}'.format(self.camera_name))
         else:
-            image = np.array(raw_image) + 128 # Reverse list and make values [0;255]
+            image = np.array(raw_image) # Reverse list and make values [0;255]
+            
             # Reshape and flip the image vertically
             image = np.flip(np.reshape(image, (resolution[1], resolution[0], 3)), 1) 
             image = np.flip(image)
+            image = abs(image)
 
         return image, resolution
 

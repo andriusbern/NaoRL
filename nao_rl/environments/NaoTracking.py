@@ -5,12 +5,13 @@
 from __future__ import print_function
 import time, math
 import numpy as np
-from gym import spaces
 import cv2 as cv
+from gym import spaces
+
 
 # Local imports
 from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO, Ball, image_processing
+from nao_rl.utils import RealNAO, VrepNAO, Ball, image_processing
 from nao_rl import settings
 
 
@@ -45,10 +46,10 @@ class NaoTracking(VrepEnv):
         self.body_parts = ['Head']
 
         # Action and state spaces
-        self.velocities = [0, 0]
-        self.velocity_bounds = [-.02, .02]
-        self.action_space = spaces.Box(low=np.array([-0.002, -0.002]),
-                                       high=np.array([0.002, 0.002]),
+        # self.velocities = [0, 0]
+        # self.velocity_bounds = [-.02, .02]
+        self.action_space = spaces.Box(low=np.array([-1, -1]),
+                                       high=np.array([1, 1]),
                                        dtype=np.float32)
 
         self.observation_space = spaces.Box(low=np.array([-np.inf] * 4),
@@ -57,7 +58,7 @@ class NaoTracking(VrepEnv):
         self.state = np.zeros(14)
 
         # Simulations parameters
-        self.done = False
+        self.done = True
         self.steps = 0
 
 
@@ -68,9 +69,9 @@ class NaoTracking(VrepEnv):
         self.connect()
 
         # Window for displaying the camera image
-        if self.window is not None:
-            cv.namedWindow(self.window, cv.WINDOW_NORMAL)
-            cv.resizeWindow('s', 600,600)
+        # if self.window is not None:
+        #     cv.namedWindow(self.window, cv.WINDOW_NORMAL)
+        #     cv.resizeWindow('s', 600,600)
 
 
     def _make_observation(self):
@@ -80,16 +81,19 @@ class NaoTracking(VrepEnv):
                        velocities of the head motors]
         """
         image, resolution = self.agent.get_image()
-        _, center, resolution = image_processing.ball_tracking(image, resolution, 'NaoDisplay')
+        print(len(image))
+        angles = self.agent.get_angles()
+        _, center, resolution = image_processing.ball_tracking(image, resolution, self.window)
 
         if center != None:
             
             coords = [float(center[x])/float(resolution[x]) for x in range(2)]
-            self.state = [coords[0], coords[1], self.velocities[0], self.velocities[1]]
+            self.state = [coords[0], coords[1], angles[0], angles[1]]
         else:
-            # print('done')
+            print('done')
             self.done = True
-            self.state = [0, 0, self.velocities[0], self.velocities[1]]
+            self.state = [0, 0, angles[0], angles[1]]
+        
         
 
     def _make_action(self, action):
@@ -98,12 +102,12 @@ class NaoTracking(VrepEnv):
         """
 
         # Update velocities
-        for i in range(len(self.velocities)):
-            self.velocities[i] += action[i] / 1000
-            if self.velocities[i] < self.velocity_bounds[0]: self.velocities[i] = self.velocity_bounds[0]
-            if self.velocities[i] > self.velocity_bounds[1]: self.velocities[i] = self.velocity_bounds[1]
+        # for i in range(len(self.velocities)):
+        #     self.velocities[i] += action[i] / 1000
+        #     if self.velocities[i] < self.velocity_bounds[0]: self.velocities[i] = self.velocity_bounds[0]
+        #     if self.velocities[i] > self.velocity_bounds[1]: self.velocities[i] = self.velocity_bounds[1]
 
-        self.agent.move_joints(action)
+        self.agent.move_joints(action/40)
 
 
     def step(self, action):
@@ -146,15 +150,20 @@ class NaoTracking(VrepEnv):
 
     def run(self):
         """
-        Run the test simulation without any learning algorithm
+        Run the test simulation without any learning algorithm for debugging purposes
         """
-        
+        self.reset()
         t = 0
         while t < 10:
-            done = False
+            self.done = False
             self.start_simulation()
-            while not done:
-                _, _, done, _ = self.step(self.action_space.sample())
+            while not self.done:
+                raw_input("Press Enter to continue...")
+                action = self.action_space.sample()
+                print(action)
+                state, reward, self.done, _ = self.step(action)
+                print('Current state:\n angles: {}'.format(state))
+                print('Reward: {}'.format(reward))
 
             self.stop_simulation()
             t += 1
@@ -165,13 +174,6 @@ if __name__ == "__main__":
     """
     If called as a script this will initialize the scene in an open vrep instance 
     """
-    ip = '127.0.0.1'
-    port = 5995
-    simulation_port = 19998
-    scene = '/home/andrius/thesis/nao_rl/nao_rl/scenes/nao_ball.ttt'
-
-    # Environment and objects
-    env = NaoTracking(ip, simulation_port, port, scene)
-    env.agent.connect_env(env)
-    env.ball.connect_env(env)
+    import nao_rl
+    env = nao_rl.make('NaoTracking', headless=False)
     env.run()

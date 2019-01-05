@@ -49,6 +49,8 @@ class NaoBalancing(VrepEnv):
         #    - Collision between the floor and each foot [2]
         self.state = np.zeros(16)
         self.previous_feet_position = [0, 0]
+        self.previous_state = np.zeros(16)
+        self.previous_orientation = 0
 
         # The environment resets if roll or pitch is above this threshold        
         self.fall_threshold = np.pi/5
@@ -123,19 +125,20 @@ class NaoBalancing(VrepEnv):
 
         # #### Function 2
         # orientation_score = (abs(roll) + abs(pitch)) / 2
-        # reward = 0
+        # reward = .05
         # # Include negative rewards
+        # # orientation_difference = abs(roll - self.pre)
         # orientation_difference = abs(orientation_score - self.previous_orientation)
         # if orientation_score < self.previous_orientation:
         #     reward += 100 * orientation_difference
         # else:
         #     reward -= 50 * orientation_difference
-        # if self.previous_orientation is None:
+        # if self.previous_orientation == 0:
         #     reward = 0
         # # else:
         # #     reward += ((1 - orientation_score) ** 4) / 20
 
-        # self.previous_orientation = [roll, pitch]
+        # self.previous_orientation = orientation_score
 
         
         #### Function 3
@@ -151,8 +154,10 @@ class NaoBalancing(VrepEnv):
         else:
             reward += .125
         
-        # if roll < .1 and pitch < .1:
-        #     reward += .2
+
+        self.previous_state = self.state
+        if roll < .05 and pitch < .05:
+            reward += .2
 
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
             reward -= 2
@@ -161,6 +166,7 @@ class NaoBalancing(VrepEnv):
         
 
         return self.state, reward, self.done, {}
+
 
     def reset(self, close=False):
         """
@@ -204,6 +210,5 @@ if __name__ == "__main__":
 
     # Environment and objects
     import nao_rl
-    # scene = settings.SCENES + '/nao_test2.ttt'
     env = nao_rl.make('NaoBalancing', headless=False)
     env.run()
