@@ -49,7 +49,8 @@ import nao_rl
 import gym
 from argparse import ArgumentParser
 from nao_rl.learning import PPO
-
+import json
+import matplotlib.pyplot as plt
 
 def train(env_name, algorithm, parameters, render=0, verbose=False):
     """
@@ -63,10 +64,10 @@ def train(env_name, algorithm, parameters, render=0, verbose=False):
             [2] - render all workers (only applicable for nao_rl environments)
         5. 
     """
-    try:
-        env = nao_rl.make(env_name, headless=True)
-    except:
-        env = gym.make(env_name)
+    # try:
+    #     env = nao_rl.make(env_name, headless=False)
+    # except:
+    #     env = gym.make(env_name)
 
     if algorithm == 'ppo':
         model = PPO(env_name, **parameters)
@@ -82,24 +83,35 @@ if __name__ == "__main__":
     date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     start = time.time()
     parser = ArgumentParser() # Parse command line arguments
-    saver = tf.train.Saver()  # For saving models
+    
     
     # Default environment parameters
+
+    algorithm = 'ppo'
+    env_name = 'NaoBalancing'
+
+
     parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
 
     trained_model = train(env_name, algorithm, parameters)
     model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, env_name, algorithm, date)
-    saver.save(sess, "/tmp/model.ckpt")
+    saver = tf.train.Saver()  # For saving models
+    saver.save(trained_model.sess, model_path)
     print 'Trained model saved at {}'.format(model_path)
 
     # Create a training log
     log = parameters.copy()
     log['env'] = env_name
-    log['normalized_reward'] = model.running_reward
-    log['episode_reward'] = model.episode_reward
+    log['normalized_reward'] = trained_model.running_reward
+    log['episode_reward'] = trained_model.episode_reward
     log['date'] = date 
     
     log_path = '{}/{}_{}_{}.log'.format(nao_rl.settings.DATA, env_name, algorithm, date)
-    with open(filename, 'w') as logfile:
+    with open(log_path, 'w') as logfile:
         logfile.write(json.dumps(log))
     print 'Log file saved at {}'.format(log_path)
+
+
+    # Plot
+    plt.plot(trained_model.running_reward)
+    plt.show()

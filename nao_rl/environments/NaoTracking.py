@@ -44,6 +44,7 @@ class NaoTracking(VrepEnv):
         
         self.active_joints = ['Head']
         self.body_parts = ['Head']
+        
 
         # Action and state spaces
         # self.velocities = [0, 0]
@@ -67,6 +68,7 @@ class NaoTracking(VrepEnv):
         Connects to vrep, loads the scene and initializes the posture of NAO
         """
         self.connect()
+        
 
         # Window for displaying the camera image
         # if self.window is not None:
@@ -80,8 +82,8 @@ class NaoTracking(VrepEnv):
         State space - [normalized coordinates of the center of the ball [0-1], 
                        velocities of the head motors]
         """
-        image, resolution = self.agent.get_image()
-        print(len(image))
+        image, resolution = self.agent.get_image(mode='buffer')
+
         angles = self.agent.get_angles()
         _, center, resolution = image_processing.ball_tracking(image, resolution, self.window)
 
@@ -90,7 +92,6 @@ class NaoTracking(VrepEnv):
             coords = [float(center[x])/float(resolution[x]) for x in range(2)]
             self.state = [coords[0], coords[1], angles[0], angles[1]]
         else:
-            print('done')
             self.done = True
             self.state = [0, 0, angles[0], angles[1]]
         
@@ -107,7 +108,7 @@ class NaoTracking(VrepEnv):
         #     if self.velocities[i] < self.velocity_bounds[0]: self.velocities[i] = self.velocity_bounds[0]
         #     if self.velocities[i] > self.velocity_bounds[1]: self.velocities[i] = self.velocity_bounds[1]
 
-        self.agent.move_joints(action/40)
+        self.agent.move_joints(action/20)
 
 
     def step(self, action):
@@ -135,6 +136,7 @@ class NaoTracking(VrepEnv):
         Reset the environment to default state and return the first observation
         """ 
         # Reset state
+        self.get_vision_image(self.agent.camera_handle, 'streaming') # Start streaming
         self.steps = 0
         self.velocities = [0, 0]
         self.state = []

@@ -11,7 +11,7 @@ import nao_rl, time
 
 
 class PPO(object):
-    def __init__(self, env_name='', n_workers=4,  max_episodes=5000, episode_length=500,
+    def __init__(self, env_name, n_workers=4,  max_episodes=5000, episode_length=500,
                  batch_size=128, epochs=10, epsilon=.2, gamma=.99,
                  actor_layers=[500,500], critic_layers=[500],
                  actor_lr=.00001, critic_lr=.00002):
@@ -83,7 +83,7 @@ class PPO(object):
         # Actor
         policy, pi_params = self.build_actor('policy', True, actor_layers)
         old_policy, oldpi_params = self.build_actor('old_policy', False, actor_layers)
-        self.choose_action = tf.squeeze(policy.sample(1), axis=0)  
+        self.choose_action = tf.squeeze(policy.sample(1), axis=0, name='choose_action')  
         self.update_policy = [old.assign(p) for p, old in zip(pi_params, oldpi_params)]
         ratio = policy.prob(self.action_input) / (old_policy.prob(self.action_input) + 1e-5)
         surrogate_loss = ratio * self.advantage_input
@@ -107,7 +107,7 @@ class PPO(object):
             # Output layer
             mu = 2 * tf.layers.dense(hidden_layer, self.action_space, tf.nn.tanh, trainable=trainable)
             sigma = tf.layers.dense(hidden_layer, self.action_space, tf.nn.softplus, trainable=trainable)
-            norm_dist = tf.distributions.Normal(loc=mu, scale=sigma)
+            norm_dist = tf.distributions.Normal(loc=mu, scale=sigma, name='policy')
 
         params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
         return norm_dist, params

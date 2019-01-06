@@ -6,6 +6,7 @@ dist/
 naorl/tests
 naorl/data
 logs/
+log/
 
 # .gitignore
 

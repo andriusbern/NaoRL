@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/andrius/thesis/nao_rl/nao_rl/trained_models/NaoBalancing_ppo_2019-01-07_00:21:27.cpkt"
+all_model_checkpoint_paths: "/home/andrius/thesis/nao_rl/nao_rl/trained_models/NaoBalancing_ppo_2019-01-07_00:21:27.cpkt"

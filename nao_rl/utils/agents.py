@@ -311,11 +311,11 @@ class VirtualNAO(NAO):
     ## VISION ##
     ############
 
-    def get_image(self):
+    def get_image(self, mode='blocking'):
         """
         Retrieves an image from NAOs vision sensor in vrep
         """
-        _, resolution, raw_image = self.env.get_vision_image(self.camera_handle)
+        _, resolution, raw_image = self.env.get_vision_image(self.camera_handle, mode)
         if len(raw_image) == 0:
             raise RuntimeError('The image could not be retrieved from {}'.format(self.camera_name))
         else:

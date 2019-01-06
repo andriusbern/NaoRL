@@ -24,7 +24,7 @@ TRAINED_MODELS = MAIN_DIR + '/trained_models'
 DATA = MAIN_DIR + '/data'
 
 # System parameters
-CPU_COUNT = multiprocessing.cpu_count()
+CPU_COUNT = multiprocessing.cpu_count() / 2
 
 #############################
 ### Addresses and ports
@@ -41,19 +41,30 @@ REAL_NAO_IP   = '192.168.1.175'    # IP address of real nao (can be checked in c
 default_parameters = {}
 
 # Proximal Policy Optimization
-default_parameters['ppo_NaoTracking']  = {'n_workers'      : [CPU_COUNT],               # Number of parallel workers
-                                          'max_episodes'   : [6500],            # Max number of episodes before the training stops
-                                          'episode_length' : [2000],            # Maximum length of the episode in steps
-                                          'batch_size'     : [4096],            # Batch size of experiences for each training occurence
-                                          'epochs'         : [8],               # Number of epochs for gradient descent/ADAM
-                                          'epsilon'        : [.15],             # 
-                                          'gamma'          : [.99],             # Discount factor
-                                          'actor_layers'   : [[256, 256]],      # Number of layers and nodes in each layer of the actor network
-                                          'critic_layers'  : [[128, 128]],      # Number of layers and nodes in each layer of the critic network
-                                          'actor_lr'       : [.00001],          # Actor learning rate
-                                          'critic_lr'      : [.00005]}          # Critic learning rate
+default_parameters['ppo_NaoTracking']  = {'n_workers'      : CPU_COUNT,       # Number of parallel workers
+                                          'max_episodes'   : 6500,            # Max number of episodes before the training stops
+                                          'episode_length' : 2000,            # Maximum length of the episode in steps
+                                          'batch_size'     : 4096,            # Batch size of experiences for each training occurence
+                                          'epochs'         : 8,               # Number of epochs for gradient descent/ADAM
+                                          'epsilon'        : .15,             # Clipping value of surogate objective
+                                          'gamma'          : .99,             # Future reward discount factor
+                                          'actor_layers'   : [256, 256],      # Number of layers and nodes in each layer of the actor network
+                                          'critic_layers'  : [128, 128],      # Number of layers and nodes in each layer of the critic network
+                                          'actor_lr'       : .00001,          # Actor learning rate
+                                          'critic_lr'      : .00005}          # Critic learning rate
     
-default_parameters['ppo_NaoBalancing'] = {}
+default_parameters['ppo_NaoBalancing'] = {'n_workers'      : CPU_COUNT,
+                                          'max_episodes'   : 10000,
+                                          'episode_length' : 2000,
+                                          'batch_size'     : 4000,
+                                          'epochs'         : 8,
+                                          'epsilon'        : .1,
+                                          'gamma'          : .99,
+                                          'actor_layers'   : [256, 256],
+                                          'critic_layers'  : [256, 256],
+                                          'actor_lr'       : .00001,
+                                          'critic_lr'      : .00002}
+
 default_parameters['ppo_NaoWalking']   = {}
 
 # Asynchronous Advantage Actor Critic

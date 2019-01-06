@@ -22,16 +22,16 @@ def grid_search():
     # PARAMETERS
     number_of_repeats = 1 # Number of iterations per each combination of params
 
-    parameters = {'env_name'       : ['NaoBalancing'],
+    parameters = {'env_name'       : ['NaoTracking'],
                   'n_workers'      : [4],
-                  'max_episodes'   : [6500],
+                  'max_episodes'   : [1000],
                   'episode_length' : [2000],
-                  'batch_size'     : [2000],
+                  'batch_size'     : [1000, 500, 2000],
                   'epochs'         : [8],
                   'epsilon'        : [.2],
                   'gamma'          : [.99],
-                  'actor_layers'   : [[256, 256]],
-                  'critic_layers'  : [[256, 256]],
+                  'actor_layers'   : [[50, 50], [100, 100]],
+                  'critic_layers'  : [[50, 50]],
                   'actor_lr'       : [.00001],
                   'critic_lr'      : [.00002]}
     
