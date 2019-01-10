@@ -56,14 +56,14 @@ default_parameters['ppo_NaoTracking']  = {'n_workers'      : CPU_COUNT,       # 
 default_parameters['ppo_NaoBalancing'] = {'n_workers'      : CPU_COUNT,
                                           'max_episodes'   : 10000,
                                           'episode_length' : 2000,
-                                          'batch_size'     : 4000,
-                                          'epochs'         : 8,
+                                          'batch_size'     : 2000,
+                                          'epochs'         : 5,
                                           'epsilon'        : .1,
                                           'gamma'          : .99,
                                           'actor_layers'   : [256, 256],
                                           'critic_layers'  : [256, 256],
-                                          'actor_lr'       : .00001,
-                                          'critic_lr'      : .00002}
+                                          'actor_lr'       : .000005,
+                                          'critic_lr'      : .00001}
 
 default_parameters['ppo_NaoWalking']   = {}
 

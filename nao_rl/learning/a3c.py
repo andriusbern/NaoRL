@@ -4,6 +4,7 @@ Asynchronous Advantage Actor Critic (A3C), Reinforcement Learning.
 """
 
 import multiprocessing
+import datetime
 import threading
 import tensorflow as tf
 import numpy as np
@@ -11,8 +12,8 @@ import gym
 import os
 import nao_rl
 
-GAME = 'NaoBalancing'
-RENDER = True
+GAME = 'NaoWalking'
+RENDER = False
 
 OUTPUT_GRAPH = False
 LOG_DIR = './log'
@@ -50,7 +51,7 @@ class ACNet(object):
                 self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
         else:   # local net, calculate losses
             with tf.variable_scope(scope):
-                self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
+                self.s = tf.placeholder(tf.float32, [None, N_S], 'state_input')
                 self.a_his = tf.placeholder(tf.float32, [None, N_A], 'A')
                 self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
 
@@ -73,8 +74,8 @@ class ACNet(object):
                     self.exp_v = ENTROPY_BETA * entropy + exp_v
                     self.a_loss = tf.reduce_mean(-self.exp_v)
 
-                with tf.name_scope('choose_a'):  # use local params to choose action
-                    self.A = tf.clip_by_value(tf.squeeze(normal_dist.sample(1)), *A_BOUND)
+                with tf.name_scope('choose_action'):  # use local params to choose action
+                    self.A = tf.clip_by_value(tf.squeeze(normal_dist.sample(1)), *A_BOUND, name='choose_action')
                 with tf.name_scope('local_grad'):
                     self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
                     self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
@@ -172,6 +173,7 @@ class Worker(object):
                 ep_s += 1
                 if done:
                     # achieve = '| Achieve' if self.env.unwrapped.hull.position[0] >= 88 else '| -------'
+                    avg_r = ep_r / float(ep_s)
                     if len(GLOBAL_RUNNING_R) == 0:  # record running episode reward
                         GLOBAL_RUNNING_R.append(ep_r)
                     else:
@@ -184,7 +186,7 @@ class Worker(object):
                         "| RR: %.1f" % GLOBAL_RUNNING_R[-1],
                         '| EpR: %.1f' % ep_r,
                         '| EpS: %i' % ep_s,
-                        # '| var:', test,
+                        '| AvgR: %.3f' % avg_r,
                     )
                     GLOBAL_EP += 1
                     break
@@ -224,6 +226,17 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print 'Stopped'
         COORD.should_stop()
+
+
+    date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    algorithm = 'a3c'
+
+
+    model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, GAME, algorithm, date)
+    saver = tf.train.Saver()  # For saving models
+    saver.save(SESS, model_path)
+    print 'Trained model saved at {}'.format(model_path)
+
 
     import matplotlib.pyplot as plt
     plt.plot(GLOBAL_RUNNING_R)

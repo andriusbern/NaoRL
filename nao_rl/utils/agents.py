@@ -69,7 +69,9 @@ class RealNAO(NAO):
     def __init__(self, ip, port):
         
         NAO.__init__(self, ip, port)
+        self.camera_proxy = None
         self.video_client = None
+        self.memory_proxy = None
 
 
     def connect(self, naoqi_ip, naoqi_port, resolution=0, colorSpace=0, fps=30):
@@ -94,11 +96,13 @@ class RealNAO(NAO):
         self.posture_proxy = ALProxy("ALRobotPosture", self.ip, self.port)
         self.motion_proxy.stiffnessInterpolation(self.active_joints, 1, self.stiffness)
         self.posture_proxy.goToPosture("Stand", 1)
+        self.mem
 
         # Vision
         self.camera_proxy = ALProxy('ALVideoDevice', self.ip, self.port)
         self.video_client = self.camera_proxy.subscribe("python_client", resolution, colorSpace, fps)
-
+        self.memory_proxy = ALProxy('ALMemory', self.ip, self.port)
+        
  
     def get_angles(self, joints="Body", use_sensors=True):
         """
@@ -111,7 +115,7 @@ class RealNAO(NAO):
 
         return angles
 
-    def move_joints(self, joints, angles, speed=.8, blocking=False):
+    def move_joints(self, joints, angles, speed=.8, blocking=True):
         """
         Moves the joints in a list to specific positions by an increment
             - [joints] and [angles] lists must be of the same length
@@ -390,7 +394,9 @@ class VrepNAO(VirtualNAO):
         """
         self.part_handles = {'LFoot' : self.env.get_handle('imported_part_18'),
                              'RFoot' : self.env.get_handle('imported_part_37'),
-                             'Head'  : self.env.get_handle('imported_part_16_sub0')}
+                             'Head'  : self.env.get_handle('imported_part_16_sub0'),
+                             'Torso' : self.env.get_handle('imported_part_20_sub0')}
+
         self.body_parts = self.env.body_parts
         positions = [self.env.get_object_position(self.part_handles[handle]) for handle in self.body_parts]
         self.initial_position = dict(zip(self.body_parts, positions))
@@ -432,9 +438,13 @@ class VrepNAO(VirtualNAO):
 
         if orientation:
             self.env.get_object_orientation(self.handle, 'streaming')
+            for part in self.body_parts:
+                self.env.get_object_orientation(self.part_handles[part], 'streaming')
 
         if position:
             self.env.get_object_position(self.handle, 'streaming')
+            for part in self.body_parts:
+                self.env.get_object_position(self.part_handles[part], 'streaming')
 
 
     # Motion and position
@@ -450,11 +460,6 @@ class VrepNAO(VirtualNAO):
 
         return np.array(angles)
 
-    def get_body_part_position(self, part):
-        """
-        Returns the position of a body part
-        """
-        return self.env.get_object_position(self.part_handles[part])
 
     def get_orientation(self, part=None):
         """

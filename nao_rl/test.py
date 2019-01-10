@@ -43,7 +43,7 @@ class RestoredModel(object):
 
 if __name__ == "__main__":
 
-    name = 'NaoBalancing_ppo_2019-01-06_22:49:34.cpkt'
+    name = 'NaoBalancing_ppo_2019-01-07_00:33:26.cpkt'
     env = name.split('_')[0]
     name = nao_rl.settings.TRAINED_MODELS + '/' + name
 

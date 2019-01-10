@@ -31,7 +31,7 @@ class NaoTracking(VrepEnv):
 
         # Vrep
         self.window = window
-        self.initialize() # Connect to vrep, load the scene and initialize the agent
+        self.path = settings.SCENES + '/nao_ball.ttt'
 
         # Objects
         self.ball  = Ball(name='Sphere1')
@@ -68,6 +68,7 @@ class NaoTracking(VrepEnv):
         Connects to vrep, loads the scene and initializes the posture of NAO
         """
         self.connect()
+        self.agent.connect(self)
         
 
         # Window for displaying the camera image

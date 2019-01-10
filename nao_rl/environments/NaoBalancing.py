@@ -26,9 +26,9 @@ class NaoBalancing(VrepEnv):
             address = settings.LOCAL_IP
         
         VrepEnv.__init__(self, address, port)
-
+        
         # Vrep
-        self.initialize()  # Connect to vrep, load the scene and initialize the agent
+        self.path = settings.SCENES + '/nao_test2.ttt'
 
         # Agent
         self.agent = VrepNAO(True)
@@ -63,6 +63,7 @@ class NaoBalancing(VrepEnv):
         Connects to vrep, loads the scene and initializes the posture of NAO
         """
         self.connect()
+        self.agent.connect(self)
 
     def _make_observation(self):
         """
@@ -143,7 +144,7 @@ class NaoBalancing(VrepEnv):
         
         #### Function 3
         # Staying upright
-        reward = 0.05 # Default reward for each step
+        reward = 0.1 # Default reward for each step
         if abs(roll) > abs(self.previous_state[12]):
             reward -= .1
         else:
@@ -156,7 +157,7 @@ class NaoBalancing(VrepEnv):
         
 
         self.previous_state = self.state
-        if roll < .05 and pitch < .05:
+        if abs(roll) < .05 and abs(pitch) < .05:
             reward += .2
 
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):

@@ -11,9 +11,9 @@ import nao_rl, time
 
 
 class PPO(object):
-    def __init__(self, env_name, n_workers=4,  max_episodes=5000, episode_length=500,
-                 batch_size=128, epochs=10, epsilon=.2, gamma=.99,
-                 actor_layers=[500,500], critic_layers=[500],
+    def __init__(self, env_name, render, n_workers=8,  max_episodes=5000, episode_length=500,
+                 batch_size=1000, epochs=10, epsilon=.2, gamma=.99,
+                 actor_layers=[250,250], critic_layers=[250],
                  actor_lr=.00001, critic_lr=.00002):
 
         self.vrep_port = 19998
@@ -48,12 +48,15 @@ class PPO(object):
         # Environment parameters
         print "Creating dummy environment to obtain the parameters..."
         # nao_rl.destroy_instances()
-        env = nao_rl.make(self.env_name, self.vrep_port)
+        try:
+            env = nao_rl.make(self.env_name, self.vrep_port)
+        except:
+            env = gym.make(self.env_name)
         self.vrep_port -= 1
         self.action_space  = env.action_space.shape[0]
         self.state_space   = env.observation_space.shape[0]
         self.action_bounds = [env.action_space.low[0], -env.action_space.low[0]]
-        env.disconnect()
+        #env.disconnect()
         time.sleep(.5)
         nao_rl.destroy_instances()
         del env
@@ -164,7 +167,10 @@ class PPO(object):
         """
         self.workers = []
         for i in range(self.n_workers):
-            env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
+            try:
+                env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
+            except:
+                env = gym.make(self.env_name)
             self.vrep_port -= 1
             worker = Worker(env, self, i)
             self.workers.append(worker)
@@ -203,7 +209,7 @@ class PPO(object):
 
 class Worker(object):
     def __init__(self, env, global_ppo, worker_name):
-        self.worker_name = env.port
+        self.worker_name = 1
         self.env = env
         self.trainer = global_ppo
 

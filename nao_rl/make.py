@@ -7,6 +7,7 @@ and 'make' function for creating and opening the custom environments
 
 
 import subprocess, time, os
+import importlib
 import nao_rl.settings as s
 
 
@@ -87,35 +88,52 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
     ### CUSTOM ENVIRONMENTS ###
     ###########################
 
-    if env_name == 'NaoWalking':
-        from nao_rl.environments import NaoWalking
-        path = s.SCENES + '/nao_test2.ttt'
-        start_vrep(sim_port, path, headless=headless)
-        if headless: time.sleep(1.5)
-        else: time.sleep(5)
-        env = NaoWalking(s.LOCAL_IP, sim_port, nao_port)
-        env.agent.connect(env) # Connect the agent to the environment
+    
+    try:
+        module = importlib.import_module('nao_rl.environments' + '.' + env_name)
+        env_object = getattr(module, env_name)
+    except:
+        print "No such environment!"
 
-    elif env_name == 'NaoBalancing':
-        from nao_rl.environments import NaoBalancing
-        path = s.SCENES + '/nao_test2.ttt'
-        start_vrep(sim_port, path, headless=headless)
-        if headless: time.sleep(1.5)
-        else: time.sleep(5)
-        env = NaoBalancing(s.LOCAL_IP, sim_port, nao_port)
-        env.agent.connect(env)
+    env = env_object(s.LOCAL_IP, sim_port, nao_port)
+    start_vrep(sim_port, env.path, headless=headless)
 
-    elif env_name == 'NaoTracking':
-        from nao_rl.environments import NaoTracking
-        path = s.SCENES + '/nao_ball.ttt'
-        start_vrep(sim_port, path, headless=headless)
-        if headless: time.sleep(1.5)
-        else: time.sleep(5)
-        env = NaoTracking(s.LOCAL_IP, sim_port, nao_port)
-        env.agent.connect(env)
-
+    if headless:
+        time.sleep(1.5)
     else:
-        raise RuntimeError('No such environment.')
+        time.sleep(5)
+
+    env.initialize() # Connect python client to the new V-REP instance
+
+    # if env_name == 'NaoWalking':
+    #     from nao_rl.environments import NaoWalking
+    #     path = s.SCENES + '/nao_test2.ttt'
+    #     start_vrep(sim_port, path, headless=headless)
+    #     if headless: time.sleep(1.5)
+    #     else: time.sleep(5)
+    #     env = NaoWalking(s.LOCAL_IP, sim_port, nao_port)
+    #     env.agent.connect(env) # Connect the agent to the environment
+
+    # elif env_name == 'NaoBalancing':
+    #     from nao_rl.environments import NaoBalancing
+    #     path = s.SCENES + '/nao_test2.ttt'
+    #     start_vrep(sim_port, path, headless=headless)
+    #     if headless: time.sleep(1.5)
+    #     else: time.sleep(5)
+    #     env = NaoBalancing(s.LOCAL_IP, sim_port, nao_port)
+    #     env.agent.connect(env)
+
+    # elif env_name == 'NaoTracking':
+    #     from nao_rl.environments import NaoTracking
+    #     path = s.SCENES + '/nao_ball.ttt'
+    #     start_vrep(sim_port, path, headless=headless)
+    #     if headless: time.sleep(1.5)
+    #     else: time.sleep(5)
+    #     env = NaoTracking(s.LOCAL_IP, sim_port, nao_port)
+    #     env.agent.connect(env)
+
+    # else:
+    #     raise RuntimeError('No such environment.')
     
     s.SIM_PORT -= 1
     return env

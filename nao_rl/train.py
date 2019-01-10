@@ -70,7 +70,7 @@ def train(env_name, algorithm, parameters, render=0, verbose=False):
     #     env = gym.make(env_name)
 
     if algorithm == 'ppo':
-        model = PPO(env_name, **parameters)
+        model = PPO(env_name, render) #, **parameters
     if algorithm == 'a3c':
         model = A3C(env_name, **parameters)
 
@@ -88,12 +88,19 @@ if __name__ == "__main__":
     # Default environment parameters
 
     algorithm = 'ppo'
-    env_name = 'NaoBalancing'
+    env_name = 'BipedalWalker-v2'
 
 
-    parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
-
+    # parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
+    parameters = 0
     trained_model = train(env_name, algorithm, parameters)
+
+
+      # Plot
+    plt.plot(trained_model.running_reward)
+    plt.show()
+
+    
     model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, env_name, algorithm, date)
     saver = tf.train.Saver()  # For saving models
     saver.save(trained_model.sess, model_path)
@@ -112,6 +119,4 @@ if __name__ == "__main__":
     print 'Log file saved at {}'.format(log_path)
 
 
-    # Plot
-    plt.plot(trained_model.running_reward)
-    plt.show()
+  

@@ -29,12 +29,13 @@ class NaoWalking(VrepEnv):
         VrepEnv.__init__(self, address, port)
 
         # Vrep
-        self.connect() # Connect to vrep, load the scene and initialize the agent
+        self.path = settings.SCENES + '/nao_test2.ttt'
+        # self.connect() # Connect to vrep, load the scene and initialize the agent
 
         # Agent
         self.agent = VrepNAO(True)
         self.active_joints = ["LLeg", "RLeg"]        # Joints, whose position should be streamed continuously
-        self.body_parts = ['RFoot', 'LFoot', 'Head'] # Body parts whose position should be streamed continuously
+        self.body_parts = ['RFoot', 'LFoot', 'Torso'] # Body parts whose position should be streamed continuously
               
         # Action and state spaces
         self.velocities = np.zeros(12)
@@ -55,6 +56,11 @@ class NaoWalking(VrepEnv):
         self.done = False
 
 
+    def initialize(self):
+        self.connect()
+        self.agent.connect(self)
+
+
     def _make_observation(self):
         """
         Make an observation: measure the position and orientation of NAO,
@@ -62,7 +68,7 @@ class NaoWalking(VrepEnv):
         """
         
         joint_angles = self.agent.get_angles()
-        orientation = self.agent.get_orientation()[0:2]
+        orientation = self.agent.get_orientation('Torso')[0:2]
         collisions = self.agent.check_collisions()
         self.state = np.hstack([joint_angles, orientation, int(collisions[0]), int(collisions[1])])           # Angles of each joint
 
@@ -90,7 +96,7 @@ class NaoWalking(VrepEnv):
         ###################
         ### Reward function
 
-        body_position = self.agent.get_position()            # x,y,z coordinates of the agent
+        body_position = self.agent.get_position('Torso')            # x,y,z coordinates of the agent
         r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
         roll, pitch = self.state[12:14]                      # Roll and pitch of the agent's convex hull
 
@@ -106,17 +112,21 @@ class NaoWalking(VrepEnv):
         else:
             posture += .125
         
+        hull = 0
         if abs(roll) < .125 and abs(pitch) < .125:
             posture += .1
             # Lifting feet while upright
-            collisions = np.count_nonzero(self.state[14::])
-            posture = (2 - collisions) * .3
+            # collisions = np.count_nonzero(self.state[14::])
+            # posture = (2 - collisions) * .
 
-        # Hull location
-        if body_position[0] > self.previous_body_position: 
-            hull = .2
-        else:
-            hull = -.2
+            # Hull location
+            progress = body_position[0] - self.previous_body_position
+            if progress > 0: 
+                hull = 0.1 + progress * 40
+                if hull > .5: hull = .5
+            else:
+                hull = -0.1 + progress * 40
+                if hull < -.5: hull = -.5
         self.previous_body_position = body_position[0]
 
         """
@@ -141,8 +151,10 @@ class NaoWalking(VrepEnv):
 
         # self.previous_feet_position = [pos_lfoot, pos_rfoot]
 
-        base = .05
+        base = 0.05
         reward = base + posture + hull
+        # print('hull: {}'.format(hull))
+        # print('posture: {}'.format(posture))
 
         # End condition
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
@@ -164,6 +176,10 @@ class NaoWalking(VrepEnv):
         self.start_simulation()
         self.done = False
         self.state = np.zeros(16)
+
+        # Reset initial variables
+        self.previous_body_position = 0
+
         self.step_simulation()
         self._make_observation()
         return np.array(self.state)
@@ -172,10 +188,10 @@ class NaoWalking(VrepEnv):
         """
         Run the test simulation without any learning algorithm for debugging purposes
         """
-        self.reset()
+        
         t = 0
         while t < 10:
-            self.done = False
+            self.reset()
             self.start_simulation()
             while not self.done:
                 raw_input("Press Enter to continue...")
