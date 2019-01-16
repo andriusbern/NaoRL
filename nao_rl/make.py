@@ -8,7 +8,7 @@ and 'make' function for creating and opening the custom environments
 
 import subprocess, time, os
 import importlib
-import nao_rl.settings as s
+from nao_rl import settings
 
 
 def destroy_instances():
@@ -33,7 +33,7 @@ def start_vrep(sim_port, path, exit_after_sim=False, headless=True, verbose=Fals
             [verbose]       : suppress prompt messages
     """
 
-    command = 'bash ' + s.VREP_DIR + '/vrep.sh'  + \
+    command = 'bash ' + settings.VREP_DIR + '/vrep.sh'  + \
             ' -gREMOTEAPISERVERSERVICE_{}_TRUE_TRUE'.format(sim_port) # Start remote API at a specified port
 
     # Additional arguments
@@ -57,13 +57,13 @@ def start_vrep(sim_port, path, exit_after_sim=False, headless=True, verbose=Fals
 
 def start_naoqi(ports):
     """
-    Launches a new virtual NAO at a specified port
+    Launches a new virtual NAO provided by 'Choregraphe' software suite at a specified port 
     """
     if type(ports) is not list:
         ports = [ports]
     command = ''
     for instance in ports:
-        command += s.CHORE_DIR + '/naoqi-bin' + \
+        command += settings.CHORE_DIR + '/naoqi-bin' + \
                   ' -p {}'.format(instance) + ' & '
 
     print '==========================================================================='
@@ -71,7 +71,8 @@ def start_naoqi(ports):
     subprocess.Popen(command.split())
     time.sleep(5)
 
-def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
+
+def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False, **kwargs):
     """
     Launches VREP, Naoqi at specified ports
         arguments:
@@ -80,62 +81,26 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False):
     """
     if reinit:
         destroy_instances()
-
-    if sim_port is None:
-        sim_port = s.SIM_PORT
     
-    ###########################
-    ### CUSTOM ENVIRONMENTS ###
-    ###########################
-
-    
+    # Try to get the environment object
     try:
         module = importlib.import_module('nao_rl.environments' + '.' + env_name)
         env_object = getattr(module, env_name)
     except:
         print "No such environment!"
 
-    env = env_object(s.LOCAL_IP, sim_port, nao_port)
+    if sim_port is None:
+        sim_port = settings.SIM_PORT
+
+    env = env_object(settings.LOCAL_IP, sim_port, kwargs)
     start_vrep(sim_port, env.path, headless=headless)
 
-    if headless:
-        time.sleep(1.5)
-    else:
-        time.sleep(5)
+    if headless: time.sleep(1.5)
+    else:        time.sleep(5)
 
     env.initialize() # Connect python client to the new V-REP instance
+    settings.SIM_PORT -= 1
 
-    # if env_name == 'NaoWalking':
-    #     from nao_rl.environments import NaoWalking
-    #     path = s.SCENES + '/nao_test2.ttt'
-    #     start_vrep(sim_port, path, headless=headless)
-    #     if headless: time.sleep(1.5)
-    #     else: time.sleep(5)
-    #     env = NaoWalking(s.LOCAL_IP, sim_port, nao_port)
-    #     env.agent.connect(env) # Connect the agent to the environment
-
-    # elif env_name == 'NaoBalancing':
-    #     from nao_rl.environments import NaoBalancing
-    #     path = s.SCENES + '/nao_test2.ttt'
-    #     start_vrep(sim_port, path, headless=headless)
-    #     if headless: time.sleep(1.5)
-    #     else: time.sleep(5)
-    #     env = NaoBalancing(s.LOCAL_IP, sim_port, nao_port)
-    #     env.agent.connect(env)
-
-    # elif env_name == 'NaoTracking':
-    #     from nao_rl.environments import NaoTracking
-    #     path = s.SCENES + '/nao_ball.ttt'
-    #     start_vrep(sim_port, path, headless=headless)
-    #     if headless: time.sleep(1.5)
-    #     else: time.sleep(5)
-    #     env = NaoTracking(s.LOCAL_IP, sim_port, nao_port)
-    #     env.agent.connect(env)
-
-    # else:
-    #     raise RuntimeError('No such environment.')
-    
-    s.SIM_PORT -= 1
     return env
 
 

@@ -10,7 +10,7 @@ from gym import spaces
 
 # Local imports
 from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO
+from nao_rl.utils import VrepNAO, RealNAO
 from nao_rl import settings
 
 
@@ -18,38 +18,48 @@ class NaoBalancing(VrepEnv):
     """
     The goal of the agent in this environment is to learn how to walk
     """
-    def __init__(self, address=None, port=None, naoqi_port=None):
+    def __init__(self, address=None, port=None, naoqi_port=None, real=False):
+
+
+        # Vrep
+        self.path = settings.SCENES + '/nao_test2.ttt'
+        self.real = real
+        self.n_states = 14
 
         if port is None:
             port = settings.SIM_PORT
         if address is None:
             address = settings.LOCAL_IP
-        
         VrepEnv.__init__(self, address, port)
         
-        # Vrep
-        self.path = settings.SCENES + '/nao_test2.ttt'
-
+        ### Agent settings
+        self.active_joints       = ["LLeg", "RLeg"]  # Joints that are going to be used
+        self.body_parts_to_track = ['Torso']         # Body parts the position and orientation of which are used as states
+        self.movement_mode       = 'position'        # 'position' / 'velocity' / 'torque'
+        self.joint_speed         = 2
+        self.fps                 = 30.
+        
         # Agent
-        self.agent = VrepNAO(True)
-        self.active_joints = ["LLeg", "RLeg"]  # Joints, whose position should be streamed continuously
-        self.body_parts = ['RFoot', 'LFoot', 'Head'] # Body parts which position should be streamed continuously
-              
+        if self.real:
+            self.agent = RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT, self.active_joints)
+        else:
+            self.agent = VrepNAO(self.active_joints)
+
         # Action and state space limits
         self.action_space = spaces.Box(low=np.dot(-1, np.ones(12)),
                                        high=np.dot(1, np.ones(12)), dtype=np.float32)  
 
-        self.observation_space = spaces.Box(low=np.array([-np.inf] * 16),
-                                            high=np.array([np.inf] * 16), dtype=np.float32)
+        self.observation_space = spaces.Box(low=np.array([-np.inf] * self.n_states),
+                                            high=np.array([np.inf] * self.n_states), dtype=np.float32)
 
         ##### State space
         # Consists of 16 variables:
         #    - Angular positions of leg motors (6 for each leg) [12]
         #    - Roll and pitch of the convex hull of the body of the whole robot [2]
         #    - Collision between the floor and each foot [2]
-        self.state = np.zeros(16)
+        self.state = np.zeros(self.n_states)
         self.previous_feet_position = [0, 0]
-        self.previous_state = np.zeros(16)
+        self.previous_state = np.zeros(self.n_states)
         self.previous_orientation = 0
 
         # The environment resets if roll or pitch is above this threshold        
@@ -59,11 +69,12 @@ class NaoBalancing(VrepEnv):
         self.done = False
 
     def initialize(self):
-        """
-        Connects to vrep, loads the scene and initializes the posture of NAO
-        """
-        self.connect()
-        self.agent.connect(self)
+        
+        self.connect() # Connect python client to VREP
+        if self.real:
+            self.agent.connect(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, env=self)
+        else:
+            self.agent.connect(env=self)
 
     def _make_observation(self):
         """
@@ -73,9 +84,9 @@ class NaoBalancing(VrepEnv):
         """
 
         joint_angles = self.agent.get_angles()
-        orientation = self.agent.get_orientation()[0:2]
-        collisions = self.agent.check_collisions()
-        self.state = np.hstack([joint_angles, orientation, int(collisions[0]), int(collisions[1])])           # Angles of each joint
+        orientation = self.agent.get_orientation('Torso')[0:2]
+        #collisions = self.agent.check_collisions()
+        self.state = np.hstack([joint_angles, orientation])           # Angles of each joint
 
     def _make_action(self, action):
         """
@@ -83,7 +94,7 @@ class NaoBalancing(VrepEnv):
         """
 
         # Update velocities
-        self.agent.move_joints(action/40)
+        self.agent.act(action, self.movement_mode, self.joint_speed)
 
 
     def step(self, action):
@@ -100,15 +111,15 @@ class NaoBalancing(VrepEnv):
         ###################
         ### Reward function
 
-        body_position = self.agent.get_position()            # x,y,z coordinates of the agent
-        r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
+        #body_position = self.agent.get_position()            # x,y,z coordinates of the agent
+        # r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
         roll, pitch = self.state[12:14]                      # Roll and pitch of the agent's convex hull
 
         # Change in feet position along the X axis
-        pos_lfoot = self.agent.get_position('LFoot')[0]
-        pos_rfoot = self.agent.get_position('RFoot')[0]
-        distance_lfoot = (pos_lfoot - self.previous_feet_position[0])
-        distance_rfoot = (pos_rfoot - self.previous_feet_position[1])
+        # pos_lfoot = self.agent.get_position('LFoot')[0]
+        # pos_rfoot = self.agent.get_position('RFoot')[0]
+        # distance_lfoot = (pos_lfoot - self.previous_feet_position[0])
+        # distance_rfoot = (pos_rfoot - self.previous_feet_position[1])
 
         #### Function 1 
         # pos = (position[0] - self.agent.initial_nao_position[0])
@@ -163,7 +174,7 @@ class NaoBalancing(VrepEnv):
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
             reward -= 2
             self.done = True 
-        self.previous_feet_position = [pos_lfoot, pos_rfoot]
+        # self.previous_feet_position = [pos_lfoot, pos_rfoot]
         
 
         return self.state, reward, self.done, {}
@@ -178,7 +189,7 @@ class NaoBalancing(VrepEnv):
         self.agent.reset_position()
         self.start_simulation()
         self.done = False
-        self.state = np.zeros(16)
+        self.state = np.zeros(self.n_states)
         self.step_simulation()
         self._make_observation()
         return np.array(self.state)
@@ -187,20 +198,21 @@ class NaoBalancing(VrepEnv):
         """
         Run the test simulation without any learning algorithm for debugging purposes
         """
-        self.reset()
+        
         t = 0
-        while t < 10:
+        while t < 30:
             self.done = False
-            self.start_simulation()
+            self.reset()
+            fps = 30.
             while not self.done:
-                raw_input("Press Enter to continue...")
+                # raw_input("Press Enter to continue...")
                 action = self.action_space.sample()
                 print(action)
                 state, reward, self.done, _ = self.step(action)
                 print('Current state:\n angles: {}'.format(state))
                 print('Reward: {}'.format(reward))
+                time.sleep(1/fps)
 
-            self.stop_simulation()
             t += 1
 
 
@@ -213,3 +225,4 @@ if __name__ == "__main__":
     import nao_rl
     env = nao_rl.make('NaoBalancing', headless=False)
     env.run()
+    nao_rl.destroy_instances()

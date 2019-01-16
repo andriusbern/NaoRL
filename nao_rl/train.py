@@ -48,36 +48,9 @@ import tensorflow as tf
 import nao_rl
 import gym
 from argparse import ArgumentParser
-from nao_rl.learning import PPO
+from nao_rl.learning import PPO, A3C
 import json
 import matplotlib.pyplot as plt
-
-def train(env_name, algorithm, parameters, render=0, verbose=False):
-    """
-    Arguments:
-        1. Environment - any nao_rl or gym environment
-        2. Algorithm - ppo, or a3c
-        3. Parameters
-        4. Visualize
-            [0] : no rendering 
-            [1] : render first worker
-            [2] - render all workers (only applicable for nao_rl environments)
-        5. 
-    """
-    # try:
-    #     env = nao_rl.make(env_name, headless=False)
-    # except:
-    #     env = gym.make(env_name)
-
-    if algorithm == 'ppo':
-        model = PPO(env_name, render) #, **parameters
-    if algorithm == 'a3c':
-        model = A3C(env_name, **parameters)
-
-    model.train()
-
-    return model
-
 
 if __name__ == "__main__":
     date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -87,30 +60,34 @@ if __name__ == "__main__":
     
     # Default environment parameters
 
-    algorithm = 'ppo'
-    env_name = 'BipedalWalker-v2'
+    algorithm = 'a3c'
+    env_name = 'NaoTracking'
+    render = True
+    parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
 
+    if algorithm == 'ppo':
+        model = PPO(env_name, render, **parameters) #, **parameters
+    if algorithm == 'a3c':
+        model = A3C(env_name, render, **parameters)
 
-    # parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
-    parameters = 0
-    trained_model = train(env_name, algorithm, parameters)
-
-
+    model.train()
+    
       # Plot
-    plt.plot(trained_model.running_reward)
+    plt.plot(model.running_reward)
     plt.show()
 
+    model.save()
     
-    model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, env_name, algorithm, date)
-    saver = tf.train.Saver()  # For saving models
-    saver.save(trained_model.sess, model_path)
-    print 'Trained model saved at {}'.format(model_path)
+    # model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, env_name, algorithm, date)
+    # saver = tf.train.Saver()  # For saving models
+    # saver.save(model.sess, model_path)
+    # print 'Trained model saved at {}'.format(model_path)
 
     # Create a training log
     log = parameters.copy()
     log['env'] = env_name
-    log['normalized_reward'] = trained_model.running_reward
-    log['episode_reward'] = trained_model.episode_reward
+    log['normalized_reward'] = model.running_reward
+    log['episode_reward'] = model.episode_reward
     log['date'] = date 
     
     log_path = '{}/{}_{}_{}.log'.format(nao_rl.settings.DATA, env_name, algorithm, date)

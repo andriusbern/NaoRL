@@ -7,7 +7,7 @@ This file contains:
     3. Parameters for RL Algorithms
 """
 
-import os, multiprocessing
+import os, multiprocessing, random
 
 ############################
 ### Directories
@@ -29,7 +29,7 @@ CPU_COUNT = multiprocessing.cpu_count() / 2
 #############################
 ### Addresses and ports
 
-SIM_PORT      = 19998              # Simulation port of VREP
+SIM_PORT      = random.randint(19890, 19990)              # Simulation port of VREP
 LOCAL_IP      = '127.0.0.1'        # Local IP Address of VREP and NAOQI
 NAO_PORT      = 5995               # Naoqi port of simulated NAO
 REAL_NAO_PORT = 9559               # The port of real NAO (can be checked in choregraphe)
@@ -68,6 +68,15 @@ default_parameters['ppo_NaoBalancing'] = {'n_workers'      : CPU_COUNT,
 default_parameters['ppo_NaoWalking']   = {}
 
 # Asynchronous Advantage Actor Critic
-default_parameters['a3c_NaoTracking']  = {}
+default_parameters['a3c_NaoTracking']  = {'n_workers'      : 2,
+                                          'max_episodes'   : 5000,
+                                          'episode_length' : 500,
+                                          'update_every'   : 8,
+                                          'entropy_beta'   : .02, 
+                                          'gamma'          : .99,
+                                          'actor_layers'   : [50,50],
+                                          'critic_layers'  : [50],
+                                          'actor_lr'       : .0001, 
+                                          'critic_lr'      : .0002}
 default_parameters['a3c_NaoBalancing'] = {}
 default_parameters['a3c_NaoWalking']   = {}

@@ -12,21 +12,29 @@ import gym
 import os
 import nao_rl
 
-GAME = 'NaoWalking'
+GAME = 'NaoTracking'
 RENDER = False
 
 OUTPUT_GRAPH = False
 LOG_DIR = './log'
-N_WORKERS = 4
-MAX_GLOBAL_EP = 10000
+N_WORKERS = 1
+MAX_GLOBAL_EP = 100000
 GLOBAL_NET_SCOPE = 'Global_Net'
-UPDATE_GLOBAL_ITER = 10
+UPDATE_GLOBAL_ITER = 5
 GAMMA = 0.99
-ENTROPY_BETA = 0.002
-LR_A = 0.00005    # learning rate for actor
-LR_C = 0.0001    # learning rate for critic
+ENTROPY_BETA = 0.02
+LR_A = 0.000025    # learning rate for actor
+LR_C = 0.00005    # learning rate for critic
 GLOBAL_RUNNING_R = []
+
 GLOBAL_EP = 0
+
+class A3C(object):
+    def __init__(self, env_name, render, n_workers=8, max_episodes=5000, episode_length=500,
+                 epochs=10, entropy_beta=.02, gamma=.99,
+                 actor_layers=[250,250], critic_layers=[250],
+                 actor_lr=.0001, critic_lr=.0001):
+
 
 
 try:
@@ -128,7 +136,7 @@ class Worker(object):
         self.AC = ACNet(name, globalAC)
 
     def work(self):
-        global GLOBAL_RUNNING_R, GLOBAL_EP
+        global GLOBAL_RUNNING_R, GLOBAL_EP, data
         total_step = 1
         buffer_s, buffer_a, buffer_r = [], [], []
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
@@ -140,7 +148,9 @@ class Worker(object):
                 #     self.env.render()
                 a = self.AC.choose_action(s)
                 s_, r, done, info = self.env.step(a)
-                if r == -100: r = -2
+                if self.name == 'W_0':
+                    data[0].append(self.env.agent.joint_position[0])
+                    data[1].append(self.env.agent.joint_angular_v[0])
 
                 ep_r += r
                 buffer_s.append(s)
@@ -189,6 +199,18 @@ class Worker(object):
                         '| AvgR: %.3f' % avg_r,
                     )
                     GLOBAL_EP += 1
+
+                    if ep_s > 2000:
+                        COORD.should_stop()
+                    # if avg_r > .25:
+                        # date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+                        # algorithm = 'a3c'
+
+
+                        # model_path = '{}/{}_{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, GAME, avg_r, date, GLOBAL_EP)
+                       
+                        # SAVER.save(SESS, model_path)
+                        # print 'Trained model saved at {}'.format(model_path)
                     break
 
 if __name__ == "__main__":
@@ -208,6 +230,7 @@ if __name__ == "__main__":
     SESS.run(tf.global_variables_initializer())
     import time
     time.sleep(5)
+    data = [[],[]]
 
     try:
         worker_threads = []
@@ -231,16 +254,17 @@ if __name__ == "__main__":
     date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     algorithm = 'a3c'
 
-
     model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, GAME, algorithm, date)
-    saver = tf.train.Saver()  # For saving models
+    saver = tf.train.Saver(max_to_keep=20, keep_checkpoint_every_n_hours=1)
     saver.save(SESS, model_path)
     print 'Trained model saved at {}'.format(model_path)
 
 
     import matplotlib.pyplot as plt
-    plt.plot(GLOBAL_RUNNING_R)
-    plt.xlabel('episode')
-    plt.ylabel('global running reward')
+    # plt.plot(GLOBAL_RUNNING_R)
+    # plt.xlabel('episode')
+    # plt.ylabel('global running reward')
+    # plt.show()
+    plt.plot(data[0])
+    plt.plot(data[1])
     plt.show()
-

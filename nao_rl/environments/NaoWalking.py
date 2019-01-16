@@ -11,7 +11,7 @@ import cv2 as cv
 
 # Local imports
 from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO
+from nao_rl.utils import VrepNAO, RealNAO
 from nao_rl import settings
 
 class NaoWalking(VrepEnv):
@@ -19,7 +19,7 @@ class NaoWalking(VrepEnv):
     The goal of the agent in this environment is to learn how to walk
     Reward function is proportional to the 
     """
-    def __init__(self, address=None, port=None, naoqi_port=None):
+    def __init__(self, address=None, port=None, naoqi_port=None, real=False):
 
         if port is None:
             port = settings.SIM_PORT
@@ -29,11 +29,16 @@ class NaoWalking(VrepEnv):
         VrepEnv.__init__(self, address, port)
 
         # Vrep
+        self.real = real
         self.path = settings.SCENES + '/nao_test2.ttt'
         # self.connect() # Connect to vrep, load the scene and initialize the agent
 
         # Agent
-        self.agent = VrepNAO(True)
+        if self.real:
+            self.agent = RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT)
+        else:
+            self.agent = VrepNAO(True)
+
         self.active_joints = ["LLeg", "RLeg"]        # Joints, whose position should be streamed continuously
         self.body_parts = ['RFoot', 'LFoot', 'Torso'] # Body parts whose position should be streamed continuously
               
@@ -57,8 +62,12 @@ class NaoWalking(VrepEnv):
 
 
     def initialize(self):
-        self.connect()
-        self.agent.connect(self)
+
+        self.connect() # Connect python client to VREP
+        if self.real:
+            self.agent.connect(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, env=self)
+        else:
+            self.agent.connect(env=self)
 
 
     def _make_observation(self):
@@ -154,7 +163,7 @@ class NaoWalking(VrepEnv):
         base = 0.05
         reward = base + posture + hull
         # print('hull: {}'.format(hull))
-        # print('posture: {}'.format(posture))
+        # print('posture: {}'.cformat(posture))
 
         # End condition
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):

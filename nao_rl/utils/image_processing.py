@@ -22,7 +22,7 @@ def resize(image, dim):
     return resized
 
 
-def ball_tracking(im, resolution, display=None, draw=True):
+def ball_tracking(im, display=None, draw=True):
     """
     Locates a green object in an image and draws a circle around it
     """ 
@@ -59,11 +59,13 @@ def ball_tracking(im, resolution, display=None, draw=True):
         if draw:
             # Draw appropriate circles
             if radius > 2:
-                cv.circle(im, (int(x/scale), int(y/scale)), int(radius/scale), (0, 255, 255), 2)
-                cv.circle(im, (int(center[0]/scale), int(center[1]/scale)), 5, (0, 0, 255), -1)
-
-    if display is not None:
-        cv.imshow(display, cv.flip(im, 0))
+                cv.circle(im, (int(x/scale), int(y/scale)), int(radius*1.25), (0, 255, 255), 2)
+                cv.circle(im, (int(center[0]/scale), int(center[1]/scale)), 2, (0, 0, 255), -1)
+    if display:
+        if cv.getWindowProperty('Nao', 3) == -1:
+            cv.namedWindow('Nao', cv.WINDOW_NORMAL)
+            cv.resizeWindow('Nao', 300, 300)
+        cv.imshow('Nao',  im)
         key = cv.waitKey(1) & 0xFF
 
-    return im, center, resolution
+    return im, center

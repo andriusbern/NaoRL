@@ -26,7 +26,7 @@ class VrepEnv(gym.Env):
         self.running        = False
         self.scene_loaded   = False
         self.headless       = False
-        self.start_stop_delay = .15
+        self.start_stop_delay = .3
 
 
         self.modes = {'blocking'  : vrep.simx_opmode_blocking,  # Waits until the respose from vrep remote API is sent back
@@ -185,10 +185,10 @@ class VrepEnv(gym.Env):
         """
         Pauses communication and sends all the joint angle changes in one packet
         """
-        vrep.simxPauseCommunication(self.client_id, True)
+        # vrep.simxPauseCommunication(self.client_id, True)
         for i, handle in enumerate(handles):
             self.set_joint_position(handle, angles[i])
-        vrep.simxPauseCommunication(self.client_id, False)
+        # vrep.simxPauseCommunication(self.client_id, False)
 
 
     def get_joint_angle(self, handle, mode='blocking'):

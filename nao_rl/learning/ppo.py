@@ -1,6 +1,4 @@
 """
-Author: Andrius Bernatavicius, 2018
-
 Threaded implementation of PPO
 """
 
@@ -16,17 +14,15 @@ class PPO(object):
                  actor_layers=[250,250], critic_layers=[250],
                  actor_lr=.00001, critic_lr=.00002):
 
-        self.vrep_port = 19998
-
         # Training parameters
-        self.gamma = gamma
-        self.max_episodes = max_episodes
+        self.gamma          = gamma
+        self.max_episodes   = max_episodes
         self.episode_length = episode_length
-        self.batch_size = batch_size
-        self.epochs = epochs
-        self.n_workers = n_workers
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
+        self.batch_size     = batch_size
+        self.epochs         = epochs
+        self.n_workers      = n_workers
+        self.actor_lr       = actor_lr
+        self.critic_lr      = critic_lr
         
         # Synchronization
         self.env_name = env_name
@@ -40,24 +36,23 @@ class PPO(object):
 
         # Threading and events
         self.sess = tf.Session()
-        self.update_event = None
-        self.rollout = None
-        self.tf_coordinator = None
-        self.queue = None
+        self.tf_coordinator = tf.train.Coordinator()
+        self.queue = queue.Queue()  
+        self.update_event = threading.Event()
+        self.rollout = threading.Event()
+         
 
         # Environment parameters
         print "Creating dummy environment to obtain the parameters..."
         # nao_rl.destroy_instances()
         try:
-            env = nao_rl.make(self.env_name, self.vrep_port)
+            env = nao_rl.make(self.env_name)
         except:
             env = gym.make(self.env_name)
-        self.vrep_port -= 1
-        self.action_space  = env.action_space.shape[0]
-        self.state_space   = env.observation_space.shape[0]
+        self.n_actions  = env.action_space.shape[0]
+        self.n_states   = env.observation_space.shape[0]
         self.action_bounds = [env.action_space.low[0], -env.action_space.low[0]]
         #env.disconnect()
-        time.sleep(.5)
         nao_rl.destroy_instances()
         del env
 
@@ -66,8 +61,8 @@ class PPO(object):
         ##############
 
         # Input placeholders
-        self.state_input       = tf.placeholder(tf.float32, [None, self.state_space], 'state_input')
-        self.action_input      = tf.placeholder(tf.float32, [None, self.action_space],'action_input')
+        self.state_input       = tf.placeholder(tf.float32, [None, self.n_states], 'state_input')
+        self.action_input      = tf.placeholder(tf.float32, [None, self.n_actions],'action_input')
         self.advantage_input   = tf.placeholder(tf.float32, [None, 1], 'advantage')
         self.discounted_reward = tf.placeholder(tf.float32, [None, 1], 'discounted_reward')
 
@@ -106,10 +101,10 @@ class PPO(object):
             # Hidden layers
             hidden_layer = tf.layers.dense(self.state_input, layers[0], tf.nn.relu, trainable=trainable)
             for layer_size in layers[1::]:
-                hidden_layer = tf.layers.dense(hidden_layer, layer_size, tf.nn.relu, trainable=trainable)
+                hidden_layer = tf.layers.dense(hidden_layer, layer_size, tf.nn.relu, trainable=trainable)            
             # Output layer
-            mu = 2 * tf.layers.dense(hidden_layer, self.action_space, tf.nn.tanh, trainable=trainable)
-            sigma = tf.layers.dense(hidden_layer, self.action_space, tf.nn.softplus, trainable=trainable)
+            mu = 2 * tf.layers.dense(hidden_layer, self.n_actions, tf.nn.tanh, trainable=trainable)
+            sigma = tf.layers.dense(hidden_layer, self.n_actions, tf.nn.softplus, trainable=trainable)
             norm_dist = tf.distributions.Normal(loc=mu, scale=sigma, name='policy')
 
         params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
@@ -128,8 +123,8 @@ class PPO(object):
                 data = [self.queue.get() for _ in range(self.queue.qsize())]   
                 data = np.vstack(data)
 
-                states  = data[:, :self.state_space]
-                actions = data[:, self.state_space: self.state_space + self.action_space]
+                states  = data[:, :self.n_states]
+                actions = data[:, self.n_states: self.n_states + self.n_actions]
                 rewards = data[:, -1:]
                 advantage = self.sess.run(self.advantage, {self.state_input: states, self.discounted_reward: rewards})
 
@@ -168,17 +163,14 @@ class PPO(object):
         self.workers = []
         for i in range(self.n_workers):
             try:
-                env = nao_rl.make(self.env_name, self.vrep_port, headless=True)
+                env = nao_rl.make(self.env_name, headless=True)
             except:
                 env = gym.make(self.env_name)
-            self.vrep_port -= 1
             worker = Worker(env, self, i)
             self.workers.append(worker)
 
     def train(self):
-        self.update_event, self.rollout = threading.Event(), threading.Event()
-        self.tf_coordinator = tf.train.Coordinator()
-        self.queue = queue.Queue()     
+
         self.rollout.set()     
         self.update_event.clear()          
         try:
@@ -209,7 +201,7 @@ class PPO(object):
 
 class Worker(object):
     def __init__(self, env, global_ppo, worker_name):
-        self.worker_name = 1
+        self.worker_name = env.port
         self.env = env
         self.trainer = global_ppo
 
