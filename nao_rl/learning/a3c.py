@@ -9,10 +9,11 @@ import numpy as np
 import nao_rl
 import gym
 import time
+import matplotlib.pyplot as plt
 
 
 class A3C(object):
-    def __init__(self, env_name, render, n_workers=8, max_episodes=5000, episode_length=500,
+    def __init__(self, env_name, render, plot, n_workers=8, max_episodes=5000, episode_length=500,
                  update_every=10, entropy_beta=.02, gamma=.99,
                  actor_layers=[250,250], critic_layers=[250],
                  actor_lr=.0001, critic_lr=.0001):
@@ -28,11 +29,10 @@ class A3C(object):
         self.critic_layers  = critic_layers
         self.actor_lr       = actor_lr
         self.critic_lr      = critic_lr
-        self.render         = render
-        
         
         # Synchronization
         self.env_name        = env_name
+        self.stop            = False
         self.total_steps     = 0
         self.update_counter  = 0
         self.current_episode = 0
@@ -40,6 +40,26 @@ class A3C(object):
         self.episode_reward  = []
         self.time            = None
         self.verbose         = True
+        
+
+        # Rendering
+        if render == 0:
+            self.render = [True for _ in range(self.n_workers)]
+        if render == 1:
+            self.render = [True for _ in range(self.n_workers)]
+            self.render[0] = False
+        if render == 2:
+            self.render = [False for _ in range(self.n_workers)]
+
+        # Plotting
+        self.plot = plot
+        if self.plot:
+            plt.ion() 
+            plt.figure(1)
+            plt.plot()
+            plt.xlabel('Episode')
+            plt.ylabel('Running reward')
+            plt.title('{} episode reward'.format(self.env_name))
 
          # Session and coordinator
         self.sess             = tf.Session()
@@ -79,8 +99,9 @@ class A3C(object):
         Initialize environments
         """
         for i in range(self.n_workers):
+            print "\nCreating worker #{}...".format(i+1)
             try:
-                env = nao_rl.make(self.env_name, headless=self.render)
+                env = nao_rl.make(self.env_name, headless=self.render[i])
             except:
                 env = gym.make(self.env_name)
             worker = Worker(env, self)
@@ -97,14 +118,17 @@ class A3C(object):
                 thread = threading.Thread(target=worker.work, args=())
                 thread.start()
                 worker_threads.append(thread)
+            if self.plot:
+                self.live_plot()
             self.tf_coordinator.join(worker_threads, ignore_live_threads=True, stop_grace_period_secs=5)
         except KeyboardInterrupt:
             print '\nStopped'
+            self.stop = True
             self.tf_coordinator.should_stop()
+
             self.close_session()
 
-        self.save()
-    
+            
     def save(self):
         date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         algorithm = 'a3c'
@@ -118,7 +142,42 @@ class A3C(object):
         for worker in self.workers:
             worker.env.disconnect()
 
-    
+    def summary(self):
+        print 'Model summary:\n', \
+              '--------------------\n',\
+              'Environment: {}\n'.format(self.env_name),\
+              'Parameters: {}\n'.format(locals())
+
+    def live_plot(self):
+        """
+        Continuously plot the current running reward
+        Must be run on the main thread
+        """
+        plot_count = 0
+        while self.current_episode < self.max_episodes - 1 and not self.stop:
+            if self.current_episode > 1 and self.current_episode > plot_count:
+                plt.figure(1)
+                plt.plot([plot_count, plot_count+1], self.running_reward[-2:], 'r')
+                plt.plot([plot_count, plot_count+1], self.episode_reward[-2:], 'k', alpha=.2)
+                plt.show()
+                plt.pause(.0001)
+                plot_count += 1
+
+        plt.close()
+
+    def plot_rewards(self):
+        """
+        Plot the whole reward history
+        """
+        plt.figure(2)
+        plt.plot()
+        plt.xlabel('Episode')
+        plt.ylabel('Running reward')
+        plt.title('{} episode reward'.format(self.env_name))
+        plt.plot(self.running_reward)
+        plt.plot(self.episode_reward)
+        plt.show()
+
 class ActorCriticNet(object):
     def __init__(self, scope, model, globalAC=None):
         
@@ -227,13 +286,13 @@ class Worker(object):
         self.env = env
         self.name = env.port
         self.model = globalAC
-
         self.local_net = ActorCriticNet(str(self.name), globalAC)
 
     def work(self):
+
         total_step = 1
         buffer_states, buffer_actions, buffer_rewards = [], [], []
-        while not self.model.tf_coordinator.should_stop() and self.model.current_episode < self.model.max_episodes:
+        while not self.model.stop and self.model.current_episode < self.model.max_episodes:
             state = self.env.reset()
             episode_reward = 0
             episode_steps = 0
@@ -275,6 +334,7 @@ class Worker(object):
                 if done:
                     # achieve = '| Achieve' if self.env.unwrapped.hull.position[0] >= 88 else '| -------'
                     average_reward = episode_reward / float(episode_steps)
+                    self.model.episode_reward.append(episode_reward)
                     if len(self.model.running_reward) == 0:  # record running episode reward
                         self.model.running_reward.append(episode_reward)
                     else:
@@ -282,15 +342,14 @@ class Worker(object):
                     print(
                         self.name,
                         "Ep:", self.model.current_episode,
-                        # achieve,
-                        # "| Pos: %i" % self.env.unwrapped.hull.position[0],
-                        "| RR: %.1f" % self.model.running_reward[-1],
-                        '| EpR: %.1f' % episode_reward,
-                        '| EpS: %i' % episode_steps,
-                        '| AvgR: %.3f' % average_reward,
+                        "| Average reward: %.1f" % self.model.running_reward[-1],
+                        '| Episode Reward: %.1f' % episode_reward,
+                        '| Steps: %i' % episode_steps,
+                        '| Average Reward: %.3f' % average_reward,
                     )
+                    
                     self.model.current_episode += 1
-
+                    
                     break
 
 if __name__ == "__main__":
@@ -301,8 +360,3 @@ if __name__ == "__main__":
 
     # model.initialize()
     model.train()
-    import matplotlib.pyplot as plt
-    plt.plot(model.running_reward)
-    plt.xlabel('episode')
-    plt.ylabel('global running reward')
-    plt.show()

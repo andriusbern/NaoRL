@@ -172,6 +172,7 @@ class VrepEnv(gym.Env):
 
         return handles
 
+
     def set_joint_position(self, handle, angle):
         """
         Set a simulated joint identified by a [handle] to a specific [angle]

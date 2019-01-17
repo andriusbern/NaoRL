@@ -49,25 +49,27 @@ def start_vrep(sim_port, path, exit_after_sim=False, headless=True, verbose=Fals
     # Call the process and start VREP
     print "Launching V-REP at port {}".format(sim_port)
     DEVNULL = open(os.devnull, 'wb')
-    if verbose:
-        subprocess.Popen(command.split())
-    else:
-        subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL)
+    try:
+        if verbose:
+            subprocess.Popen(command.split())
+        else:
+            subprocess.Popen(command.split(), stdout=DEVNULL, stderr=DEVNULL)
+    except:
+        print "Please set up the correct path to V-REP in '../nao_rl/settings.py' (VREP_DIR = '/path/to/VREP_FOLDER_NAME')"
+    
 
-
-def start_naoqi(ports):
+def start_naoqi(port):
     """
     Launches a new virtual NAO provided by 'Choregraphe' software suite at a specified port 
     """
-    if type(ports) is not list:
-        ports = [ports]
-    command = ''
-    for instance in ports:
-        command += settings.CHORE_DIR + '/naoqi-bin' + \
-                  ' -p {}'.format(instance) + ' & '
+    try:
+        command = settings.CHORE_DIR + '/naoqi-bin' + \
+                  ' -p {}'.format(port) + ' & '
+    except:
+        print 'Please set up the correct path to "../choregraphe/bin" folder in ../nao_rl/settings.py (CHORE_DIR = ...)'
 
     print '==========================================================================='
-    print command
+
     subprocess.Popen(command.split())
     time.sleep(5)
 
@@ -110,7 +112,7 @@ def save_model(filename, object, experiment_name):
     """
 
     import pickle
-    loc = s.MAIN_DIR + '/trained_models'
+    loc = settings.MAIN_DIR + '/trained_models'
     suffix = '/model_{}'.format(experiment_name)
     file = loc + suffix + '.pickle'
     with open(file, 'wb') as f:
@@ -125,7 +127,3 @@ def load_model(filename):
 
     with open(filename, 'wb') as f:
         return pickle.load(f)
-
-
-
-

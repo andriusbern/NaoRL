@@ -4,7 +4,7 @@ Author: Andrius Bernatavicius, 2018
 This file contains:
     1. Paths to the required software
     2. Local directories of this package
-    3. Parameters for RL Algorithms
+    3. Default hyperparameters for RL Algorithms
 """
 
 import os, multiprocessing, random
@@ -18,10 +18,10 @@ VREP_DIR  = '/home/andrius/thesis/software/V-REP_PRO_EDU_V3_4_0_Linux'
 CHORE_DIR = '/home/andrius/thesis/software/choregraphe/bin'
 
 # Local
-MAIN_DIR = os.path.dirname(os.path.realpath(__file__))
-SCENES = MAIN_DIR + '/scenes'
+MAIN_DIR       = os.path.dirname(os.path.realpath(__file__))
+SCENES         = MAIN_DIR + '/scenes'
 TRAINED_MODELS = MAIN_DIR + '/trained_models'
-DATA = MAIN_DIR + '/data'
+DATA           = MAIN_DIR + '/data'
 
 # System parameters
 CPU_COUNT = multiprocessing.cpu_count() / 2
@@ -78,5 +78,25 @@ default_parameters['a3c_NaoTracking']  = {'n_workers'      : 2,
                                           'critic_layers'  : [50],
                                           'actor_lr'       : .0001, 
                                           'critic_lr'      : .0002}
-default_parameters['a3c_NaoBalancing'] = {}
-default_parameters['a3c_NaoWalking']   = {}
+
+default_parameters['a3c_NaoBalancing2'] = {'n_workers'      : 4,
+                                          'max_episodes'   : 5000,
+                                          'episode_length' : 500,
+                                          'update_every'   : 25,
+                                          'entropy_beta'   : .02, 
+                                          'gamma'          : .99,
+                                          'actor_layers'   : [250,250],
+                                          'critic_layers'  : [250],
+                                          'actor_lr'       : .0001, 
+                                          'critic_lr'      : .0002}
+
+default_parameters['a3c_NaoWalking']   = {'n_workers'      : 2,
+                                          'max_episodes'   : 5000,
+                                          'episode_length' : 500,
+                                          'update_every'   : 8,
+                                          'entropy_beta'   : .02, 
+                                          'gamma'          : .99,
+                                          'actor_layers'   : [50,50],
+                                          'critic_layers'  : [50],
+                                          'actor_lr'       : .0001, 
+                                          'critic_lr'      : .0002}

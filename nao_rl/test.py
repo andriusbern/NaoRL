@@ -19,21 +19,23 @@ import gym
 
 class RestoredModel(object):
     """
-    Contains functions for getting actions from loaded policies
+    Loads an A3C or PPO model from '.cpkt' files and restores the trained weights of tensors that produce actions
     """
 
-    def __init__(self, name):
+    def __init__(self, name, alg):
 
         self.sess = tf.Session()
         saver = tf.train.import_meta_graph(name + '.meta')
-        saver.restore(self.sess,tf.train.latest_checkpoint(nao_rl.settings.TRAINED_MODELS))
-
-        print(self.sess.run('A:0'))
-        # Variables
+        saver.restore(self.sess, name)
+        tf.train
         graph = tf.get_default_graph()
-        self.state_input = graph.get_tensor_by_name("state_input:0")
-
-        self.choose_action = graph.get_tensor_by_name("choose_action:0")
+        if alg == 'a3c':
+            self.state_input = graph.get_tensor_by_name('W_0/state_input:0')
+            self.choose_action = graph.get_tensor_by_name('W_0/choose_action/choose_action:0')
+        elif alg == 'ppo':
+            self.state_input = graph.get_tensor_by_name("state_input:0")
+            self.choose_action = graph.get_tensor_by_name("choose_action:0")
+        
 
     def action(self, state):
         """
@@ -42,29 +44,6 @@ class RestoredModel(object):
         state = state[np.newaxis, :]
 
         return self.sess.run(self.choose_action, {self.state_input: state})[0]
-
-class RestoredModelA3C(object):
-    """
-    Contains functions for getting actions from loaded policies
-    """
-
-    def __init__(self, name, worker):
-
-        self.sess = tf.Session()
-        saver = tf.train.import_meta_graph(name + '.meta')
-        saver.restore(self.sess,tf.train.latest_checkpoint(nao_rl.settings.TRAINED_MODELS))
-        graph = tf.get_default_graph()
-        self.state_input = graph.get_tensor_by_name(worker+"/state_input:0")
-        self.choose_action = graph.get_tensor_by_name(worker+"/choose_action/choose_action:0")
-
-    def action(self, state):
-        """
-        Choose an action based on the state using the loaded policy
-        """
-        state = state[np.newaxis, :]
-
-        return self.sess.run(self.choose_action, {self.state_input: state})[0]
-
 
 
 if __name__ == "__main__":
@@ -75,7 +54,8 @@ if __name__ == "__main__":
     worker = 'W_3'
     env_name = 'NaoBalancing'
     name = nao_rl.settings.TRAINED_MODELS + '/' + name
-    model = RestoredModelA3C(name, worker)
+    alg = 'a3c'
+    model = RestoredModel(name, alg)
 
     # # Walking
     # name = 'walking.cpkt'
@@ -112,8 +92,9 @@ if __name__ == "__main__":
             total_reward += reward
             steps += 1
             time.sleep(1/fps)
-        n += 1
-        print "\nAttempt {}/{} | Total reward: {} | Steps: {}".format(n, attempts, total_reward, steps)
+        
+        if alg == 'a3c':
+            n += 1
 
     nao_rl.destroy_instances()
     

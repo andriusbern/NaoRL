@@ -22,7 +22,7 @@ class NaoBalancing2(VrepEnv):
         
         # Vrep
         self.real = use_real_agent
-        self.path = settings.SCENES + '/nao_test2.ttt'
+        self.path = settings.SCENES + '/nao_standzero.ttt'
 
         if port is None:
             port = settings.SIM_PORT

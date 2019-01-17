@@ -9,7 +9,7 @@ import nao_rl, time
 
 
 class PPO(object):
-    def __init__(self, env_name, render, n_workers=8,  max_episodes=5000, episode_length=500,
+    def __init__(self, env_name, render, plot, n_workers=8, max_episodes=5000, episode_length=500,
                  batch_size=1000, epochs=10, epsilon=.2, gamma=.99,
                  actor_layers=[250,250], critic_layers=[250],
                  actor_lr=.00001, critic_lr=.00002):
@@ -198,6 +198,11 @@ class PPO(object):
         self.sess.close()
         tf.reset_default_graph()
 
+    def summary(self):
+        print 'Model summary:\n', \
+              '--------------------\n',\
+              'Environment: {}\n'.format(self.env_name),\
+              'Parameters: {}\n'.format(locals())
 
 class Worker(object):
     def __init__(self, env, global_ppo, worker_name):

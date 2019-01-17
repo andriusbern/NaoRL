@@ -3,86 +3,20 @@ Author: Andrius Bernatavicius, 2018
 
 Script for training RL Algorithms on the custom nao_rl or OpenAI gym environments
 
-Arguments:
-    Environments:
-        1. [--NaoTracking]
-        2. [--NaoBalancing] 
-        3. [--NaoWalking] 
-        4. Any OpenAI gym environment (e.g. 'BipedalWalker-v2')
-    Algorithms:
-        1. [--ppo] Proximal Policy Optimization (PPO) 
-        2. [--a3c] Asynchronous Advantage Actor Critic (A3C)
-
-Optional Arguments:
-    1. Number of parallel workers (should not exceed the number of available cores):
-        [--n_workers N] ---- e.g. [1:N] 
-
-    2. Max number of episodes (depends on the difficulty of the environment):
-        [--episodes N]  ---- e.g. [1e5:1e7]
-
-    3. Max number of steps in each episode:
-        [--steps N] 
-
-    4. Number of layers and nodes in the actor network
-        [--n_layers_actor N,N,N...] 
-
-    5. Number of layers and nodes in the critic network
-        [--n_layers_critic N,N,N...]
-
-    6. Gamma (future reward discount factor)
-        [--gamma N] [0:1]
-
-    7. 
-    
-
-    Example to train with optimal parameters:
-        'python train.py --NaoTracking --ppo'
-    Custom parameters:
-        'python train.py --NaoTracking --ppo --n_workers 4 --episodes 10000 --steps 500 --n_layers_actor 250 250 --n_layers_critic 250 250'
-      *OR*
-        edit the settings.py file that contains the default parameters
 """
 
 import datetime, copy, time
-import tensorflow as tf
-import nao_rl
-import gym
-from argparse import ArgumentParser
-from nao_rl.learning import PPO, A3C
+import argparse
 import json
 import matplotlib.pyplot as plt
 
-if __name__ == "__main__":
+from nao_rl.learning import PPO, A3C
+import tensorflow as tf
+import nao_rl
+import gym
+
+def create_log(model, parameters):
     date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    start = time.time()
-    parser = ArgumentParser() # Parse command line arguments
-    
-    
-    # Default environment parameters
-
-    algorithm = 'a3c'
-    env_name = 'NaoTracking'
-    render = True
-    parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
-
-    if algorithm == 'ppo':
-        model = PPO(env_name, render, **parameters) #, **parameters
-    if algorithm == 'a3c':
-        model = A3C(env_name, render, **parameters)
-
-    model.train()
-    
-      # Plot
-    plt.plot(model.running_reward)
-    plt.show()
-
-    model.save()
-    
-    # model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, env_name, algorithm, date)
-    # saver = tf.train.Saver()  # For saving models
-    # saver.save(model.sess, model_path)
-    # print 'Trained model saved at {}'.format(model_path)
-
     # Create a training log
     log = parameters.copy()
     log['env'] = env_name
@@ -94,6 +28,65 @@ if __name__ == "__main__":
     with open(log_path, 'w') as logfile:
         logfile.write(json.dumps(log))
     print 'Log file saved at {}'.format(log_path)
+
+
+if __name__ == "__main__":
+    
+    start = time.time()
+    parser = argparse.ArgumentParser() # Parse command line arguments
+    parser.add_argument('environment', type=str, help='RL environment to run.')
+    parser.add_argument('algorithm', type=str, help='RL algorithm to use', choices=['a3c', 'ppo'])
+    parser.add_argument('render', type=int, help='Rendering mode: [0] - no rendering, [1] - render first worker, [2] - render all workers', choices=[0,1,2])
+    parser.add_argument('-p', '--plot', action='store_true', help='Live plotting of rewards during training')
+    parser.add_argument('-n', '--n_workers', type=int, help='Number of parallel workers')
+    parser.add_argument('-e', '--max_episodes', type=int, help='Max number of episodes to train')
+    parser.add_argument('-s', '--episode_length', type=int, help='Max number of steps per episode')
+    parser.add_argument('-g', '--gamma', type=float, help='Future reward discount factor')
+    parser.add_argument('-a', '--actor_lr', type=float, help='Actor net learning rate')
+    parser.add_argument('-c', '--critic_lr', type=float, help='Critic net learning rate')
+    args = parser.parse_args()
+
+    # Default environment parameters
+    env_name = args.environment
+    algorithm = args.algorithm
+    render = args.render
+    plot = args.plot
+
+    # Get default parameters
+    parameters = nao_rl.settings.default_parameters['{}_{}'.format(algorithm, env_name)]
+
+    # Replace default parameters if any were provided from the command line
+    for arg, value in vars(args).iteritems():
+        if str(arg) in parameters and value is not None:
+            parameters[str(arg)] = value
+    
+    print "Training..."
+    print "----------------"
+    print "Environment: {}".format(env_name)
+    print "Algorithm:   {}".format(algorithm)
+    print "Hyperparameters:"
+    for args, values in parameters.items():
+        print "  {} = {}".format(args, values)
+    print "----------------"
+
+    if algorithm == 'ppo':
+        model = PPO(env_name, render, plot, **parameters) #, **parameters
+    if algorithm == 'a3c':
+        model = A3C(env_name, render, plot, **parameters)
+
+    # Train and save the model  
+    model.train()
+    print 'Time elapsed: {} minutes.'.format((time.time() - start)/60)
+    model.save()
+
+    # Plots and logs
+    create_log(model, parameters)
+    model.plot_rewards()
+
+    raw_input('Press enter to exit...')
+
+    plt.close(2)
+    nao_rl.destroy_instances()
 
 
   

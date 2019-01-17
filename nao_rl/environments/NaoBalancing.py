@@ -22,7 +22,7 @@ class NaoBalancing(VrepEnv):
 
 
         # Vrep
-        self.path = settings.SCENES + '/nao_test2.ttt'
+        self.path = settings.SCENES + '/nao_standzero.ttt'
         self.real = real
         self.n_states = 14
 
@@ -36,7 +36,7 @@ class NaoBalancing(VrepEnv):
         self.active_joints       = ["LLeg", "RLeg"]  # Joints that are going to be used
         self.body_parts_to_track = ['Torso']         # Body parts the position and orientation of which are used as states
         self.movement_mode       = 'position'        # 'position' / 'velocity' / 'torque'
-        self.joint_speed         = 2
+        self.joint_speed         = 1.25
         self.fps                 = 30.
         
         # Agent
@@ -111,49 +111,8 @@ class NaoBalancing(VrepEnv):
         ###################
         ### Reward function
 
-        #body_position = self.agent.get_position()            # x,y,z coordinates of the agent
-        # r_foot_collision, l_foot_collision = self.state[-2:] # Feet collision indicators [0/1]
         roll, pitch = self.state[12:14]                      # Roll and pitch of the agent's convex hull
 
-        # Change in feet position along the X axis
-        # pos_lfoot = self.agent.get_position('LFoot')[0]
-        # pos_rfoot = self.agent.get_position('RFoot')[0]
-        # distance_lfoot = (pos_lfoot - self.previous_feet_position[0])
-        # distance_rfoot = (pos_rfoot - self.previous_feet_position[1])
-
-        #### Function 1 
-        # pos = (position[0] - self.agent.initial_nao_position[0])
-        # pos1 = (self.agent.get_position('LFoot')[0] - self.agent.initial_position['LFoot'][0])
-        # pos2 = (self.agent.get_position('RFoot')[0] - self.agent.initial_position['RFoot'][0])
-        
-        # reward = (pos1 + pos2)/2 - orient/5 
-        # reward = ((1-orient)**2)/10 #(pos1 + pos2)/2 + 
-        # print("Feet: {}, orient: {}".format((pos1+pos2)/2, abs(orient/10)))
-        # if reward > 0.09:
-        #     reward += .1
-        # if reward > .095:
-        #     reward += .1
-
-
-        # #### Function 2
-        # orientation_score = (abs(roll) + abs(pitch)) / 2
-        # reward = .05
-        # # Include negative rewards
-        # # orientation_difference = abs(roll - self.pre)
-        # orientation_difference = abs(orientation_score - self.previous_orientation)
-        # if orientation_score < self.previous_orientation:
-        #     reward += 100 * orientation_difference
-        # else:
-        #     reward -= 50 * orientation_difference
-        # if self.previous_orientation == 0:
-        #     reward = 0
-        # # else:
-        # #     reward += ((1 - orientation_score) ** 4) / 20
-
-        # self.previous_orientation = orientation_score
-
-        
-        #### Function 3
         # Staying upright
         reward = 0.1 # Default reward for each step
         if abs(roll) > abs(self.previous_state[12]):
@@ -166,7 +125,6 @@ class NaoBalancing(VrepEnv):
         else:
             reward += .125
         
-
         self.previous_state = self.state
         if abs(roll) < .05 and abs(pitch) < .05:
             reward += .2
@@ -174,9 +132,7 @@ class NaoBalancing(VrepEnv):
         if (abs(roll) > self.fall_threshold or abs(pitch) > self.fall_threshold):
             reward -= 2
             self.done = True 
-        # self.previous_feet_position = [pos_lfoot, pos_rfoot]
         
-
         return self.state, reward, self.done, {}
 
 
@@ -184,7 +140,6 @@ class NaoBalancing(VrepEnv):
         """
         Reset the environment to default state and return the first observation
         """ 
-
         self.stop_simulation()
         self.agent.reset_position()
         self.start_simulation()
@@ -194,7 +149,7 @@ class NaoBalancing(VrepEnv):
         self._make_observation()
         return np.array(self.state)
 
-    def run(self):
+    def run(self, policy=None):
         """
         Run the test simulation without any learning algorithm for debugging purposes
         """

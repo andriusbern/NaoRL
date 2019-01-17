@@ -2,7 +2,8 @@
 """
 @author: Andrius Bernatavicius, 2018
 
-This file contains the classes to control either real or virtual NAOs
+This file contains the classes to control either real or virtual NAOs 
+
 """
 
 import time, array
@@ -75,7 +76,10 @@ class NAO(object):
 
     def act(self, action, movement_mode='torque', speed=1):
         """
-        
+        Given an action vector, perform an action by either changing:
+            - Torque
+            - Current velocity
+            - Current position
         """
 
         if movement_mode == 'torque':
@@ -104,6 +108,9 @@ class NAO(object):
         else:
             print "Invalid mode for actions."
         
+
+    def visualize(self, motors=None):
+        pass
 
     ##########################################
     # METHODS TO BE OVERRIDDEN WITH SUBCLASSES

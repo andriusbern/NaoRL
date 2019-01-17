@@ -20,7 +20,7 @@ class NaoTracking(VrepEnv):
     The ball moves randomly within a specified area and the reward is proportional to the distance from
     the center of the ball to the center of NAO's vision sensor.
     """
-    def __init__(self, address=None, port=None, naoqi_port=None, show_display=True, use_real_agent=False):
+    def __init__(self, address=None, port=None, naoqi_port=None, use_real_agent=False):
         
         self.path = settings.SCENES + '/nao_ball.ttt'
         self.real = use_real_agent
@@ -35,7 +35,7 @@ class NaoTracking(VrepEnv):
         self.active_joints       = ['Head']
         self.body_parts_to_track = ['Head']
         self.movement_mode       = 'velocity'
-        self.joint_speed         = 3
+        self.joint_speed         = 2
         self.fps                 = 30.
         
         if self.real:
@@ -58,7 +58,7 @@ class NaoTracking(VrepEnv):
 
         # Additional parameters
         self.ball = Ball(name='Sphere1')  # Ball object (defined in ../utils/misc.py)
-        self.show_display = show_display  # Display the image ([None] = do not use)
+        self.show_display = False  # Display the processed image in a cv2 window (object tracking)
 
 
     def initialize(self):
@@ -113,7 +113,7 @@ class NaoTracking(VrepEnv):
         
         # Set the length of one step
         if self.real:
-            time.sleep(.02)
+            time.sleep(1/self.fps)
 
         return np.array(self.state), reward, self.done, {}
 
