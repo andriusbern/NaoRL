@@ -1,18 +1,19 @@
-# Summary
-This python package contains full integration of V-Rep simulation software, base libraries for NAO robot control along with reinforcement learning algorithms for solving custom learning environments.
+# nao_rl  -  Reinforcement Learning Package For *NAO* Robot.
+This python package integrates *V-REP* robot simulation software, base libraries for NAO robot control along with reinforcement learning algorithms for solving custom or any *OpenAI-gym*-based learning environments.
 
 ## Features:
-1. State-of-the-art RL algorithms for training the agent - Proximal Policy Optimization (PPO) and Asynchronous Advantage Actor-Critic (A3C) both of which are parallelized and scale to any number of workers.
-2. OpenAI-gym-based API for V-REP simulation software that makes it easy to create new learning tasks and environments (50 - 100 LOC)
-3. Reinforcement learning can be done both in simulation and using the real robot interchangeably.
-4. Policies learned in simulated environments can be directly tested on the real NAO robot.
+1. State-of-the-art policy gradient RL algorithms for training the agent - Proximal Policy Optimization (PPO) and Asynchronous Advantage Actor-Critic (A3C) both of which are parallelized, scale to any number of workers and drastically increase the training speed.
+2. Custom OpenAI-gym-based API for controlling *V-REP* that makes it easy to create new learning tasks and environments (50 - 100 LOC)
+3. Reinforcement learning can be done both in simulation or using the real robot.
+4. Policies learned in simulated environments can be directly tested on the real NAO robot and vice-versa.
 5. Grid search scripts for hyperparameter optimization.
-6. Several custom learning environments for the NAO robot:
+6. Custom learning environments for the NAO robot:
    
 
-  Balancing / Learning a bipedal gait         | Object tracking  
+  **1. Balancing / Learning a bipedal gait**         | **2. Object tracking**
 :-------------------------:|:-------------------------:
- <img src="assets/ezgif.com-gif-maker.gif" width="300">   | <img src="assets/untitled.gif" width="300">
+ <img src="assets/ezgif.com-gif-maker.gif" width="600">   | <img src="assets/untitled.gif" width="500">
+ The goal is to keep an upright position without falling or learn how to move forward | The goal is to keep the object within the visual field by moving the head motors. 
 
 
 
@@ -57,24 +58,52 @@ You will be prompted to enter the path to your V-Rep installation directory
 To try the environments out (V-Rep will be launched with the appropriate scene and agent loaded, actions will be sampled randomly):
 ```
 import nao_rl
-env = nao_rl.make('env_name', headless=False)
+env = nao_rl.make('env_name')
 env.run()
 ```
 Where 'env_name' corresponds to one of the following available environments:
-1. 'NaoTracking'
-2. 'NaoBalancing'
-3. 'NaoWalking'
+1. NaoTracking  - tracking an object using the camera information
+2. NaoBalancing - keeping upright balance
+3. NaoWalking   - learning a bipedal gait
 
 # Training
 
-To train the agents in these environments you can use build-in RL algorithms. 
+To train the agents in these environments you can use build-in RL algorithms:
 
 ```
-python train.py --NaoTracking --ppo --default
+python train.py NaoTracking a3c 0
 ```
-Arguments:
-1. *--ppo* for Proximal Policy Optimization or *--a3c* for Asynchronous Advantage Actor-Critic 
-2. --n_workers N : number of parallel workers that train the main network
-The environment agent is going to be trained using the optimal parameters that were found by grid search.
+<img src="assets/live_plot.gif"> 
+
+Live plotting of training results, sped up 40x (use flag '-p' to enable live plotting).
+
+Positional arguments:
+1. Environment name: 
+2. Training algorithm: 
+   1. *--a3c*    - Asynchronous Advantage Actor-Critic or 
+   2. *--ppo*    - Proximal Policy Optimization
+3. Rendering mode : 
+   1. [0] - Do not render
+   2. [1] - Render the first worker
+   3. [2] - Render all workers
+
+To find out more about additional command line arguments:
+```
+python train.py -h
+```
+
+The training session can be interrupted at any time and the model is going to be saved and can be loaded later.
+
+# Testing trained models
+
+To test trained models:
+```
+python test.py trained_models/filename.cpkt 
+```
+Add *-r* flag to run the trained policy on the real NAO (can be dangerous). It is recommended to set low fps for the environment e.g. (the robot will perform actions slowly):
+```
+python test.py trained_models/filename.cpkt -r -fps 2
+```
+
 
 

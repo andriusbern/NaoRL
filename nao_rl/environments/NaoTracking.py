@@ -6,30 +6,26 @@ from __future__ import print_function
 import time, math
 import numpy as np
 import cv2 as cv
-from gym import spaces
+from gym import spaces, Env
 
 # Local imports
-from nao_rl.environments import VrepEnv
-from nao_rl.utils import RealNAO, VrepNAO, Ball, image_processing
-from nao_rl import settings
+from nao_rl.environments import VrepEnvironment
+
+import nao_rl
 
 
-class NaoTracking(VrepEnv):
+class NaoTracking(VrepEnvironment):
     """ 
     Environment where the goal is to track the ball by moving two head motors.
     The ball moves randomly within a specified area and the reward is proportional to the distance from
     the center of the ball to the center of NAO's vision sensor.
     """
     def __init__(self, address=None, port=None, naoqi_port=None, use_real_agent=False):
-        
-        self.path = settings.SCENES + '/nao_ball.ttt'
-        self.real = use_real_agent
+        VrepEnvironment.__init__(self, address, port)
+        # super(NaoTracking, self).__init__(address, port)
 
-        if port is None:
-            port = settings.SIM_PORT
-        if address is None:
-            address = settings.LOCAL_IP
-        VrepEnv.__init__(self, address, port)
+        self.path = nao_rl.settings.SCENES + '/nao_ball.ttt'
+        self.real = use_real_agent
 
         # Movement and actions
         self.active_joints       = ['Head']
@@ -39,9 +35,9 @@ class NaoTracking(VrepEnv):
         self.fps                 = 30.
         
         if self.real:
-            self.agent = RealNAO(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, self.active_joints)
+            self.agent = nao_rl.agents.RealNAO(self.active_joints)
         else:
-            self.agent = VrepNAO(self.active_joints)
+            self.agent = nao_rl.agents.VrepNAO(self.active_joints)
         
         # State and action spaces
         self.n_states  = 4
@@ -57,7 +53,7 @@ class NaoTracking(VrepEnv):
                                             high=np.array([np.inf] * self.n_states), dtype=np.float32)
 
         # Additional parameters
-        self.ball = Ball(name='Sphere1')  # Ball object (defined in ../utils/misc.py)
+        self.ball = nao_rl.utils.Ball(name='Sphere1')  # Ball object (defined in ../utils/misc.py)
         self.show_display = False  # Display the processed image in a cv2 window (object tracking)
 
 
@@ -79,7 +75,7 @@ class NaoTracking(VrepEnv):
                        velocities of the head motors]
         """
         image = self.agent.get_image()
-        _, center = image_processing.ball_tracking(image, np.shape(image), self.show_display)
+        _, center = nao_rl.utils.ImageProcessor.ball_tracking(image, self.show_display)
         velocities = self.agent.joint_angular_v / self.agent.max_joint_velocity
     
         if center != None:
@@ -109,7 +105,11 @@ class NaoTracking(VrepEnv):
         (center_x, center_y, _, _) = self.state
 
         # Euclidean distance from the center of the ball
-        reward = .75 - np.sqrt((0.5 - center_x)**2 + (0.5 - center_y)**2)
+        euclidean_distance = np.sqrt((0.5 - center_x)**2 + (0.5 - center_y)**2)
+        reward = .3 - euclidean_distance
+        if euclidean_distance < .1:
+            reward += .1
+
         
         # Set the length of one step
         if self.real:
@@ -152,6 +152,7 @@ class NaoTracking(VrepEnv):
                     state, reward, self.done, _ = self.step(action)
                     time.sleep(1/fps)
                     steps += 1
+                    print(reward)
                 print('Steps: {}'.format(steps))
                 t += 1
         except KeyboardInterrupt:

@@ -10,23 +10,17 @@ from gym import spaces
 import cv2 as cv
 
 # Local imports
-from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO, RealNAO
-from nao_rl import settings
+from nao_rl.environments import VrepEnvironment
+from nao_rl.agents import VrepNAO, RealNAO
+import nao_rl
 
-class NaoWalking(VrepEnv):
+class NaoWalking(VrepEnvironment):
     """ 
     The goal of the agent in this environment is to learn how to walk
     Reward function is proportional to the 
     """
     def __init__(self, address=None, port=None, naoqi_port=None, real=False):
-
-        if port is None:
-            port = settings.SIM_PORT
-        if address is None:
-            address = settings.LOCAL_IP
-        
-        VrepEnv.__init__(self, address, port)
+        super(NaoWalking, self).__init__(address, port)
 
         # Vrep
         self.real = real
@@ -35,9 +29,9 @@ class NaoWalking(VrepEnv):
 
         # Agent
         if self.real:
-            self.agent = RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT)
+            self.agent = nao_rl.agents.RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT)
         else:
-            self.agent = VrepNAO(True)
+            self.agent = nao_rl.agents.VrepNAO(True)
 
         self.active_joints = ["LLeg", "RLeg"]        # Joints, whose position should be streamed continuously
         self.body_parts = ['RFoot', 'LFoot', 'Torso'] # Body parts whose position should be streamed continuously
@@ -62,12 +56,15 @@ class NaoWalking(VrepEnv):
 
 
     def initialize(self):
-
-        self.connect() # Connect python client to VREP
+        """
+        Connect to V-REP or NAO
+        This method is automatically called when the environment is created
+        """
         if self.real:
-            self.agent.connect(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, env=self)
+            self.agent.connect(self)
         else:
-            self.agent.connect(env=self)
+            self.connect() # Connect python client to VREP
+            self.agent.connect(self)
 
 
     def _make_observation(self):

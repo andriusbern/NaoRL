@@ -9,27 +9,22 @@ import numpy as np
 from gym import spaces
 
 # Local imports
-from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO, RealNAO
-from nao_rl import settings
+
+import nao_rl
 
 
-class NaoBalancing2(VrepEnv):
+class NaoBalancing2(nao_rl.environments.VrepEnvironment):
     """
     The agent's goal in this environment is to learn to keep an upright position
     """
     def __init__(self, address=None, port=None, naoqi_port=None, use_real_agent=False):
-        
+
+        super(NaoBalancing2, self).__init__(address, port)
+
         # Vrep
         self.real = use_real_agent
-        self.path = settings.SCENES + '/nao_standzero.ttt'
+        self.path = nao_rl.settings.SCENES + '/nao_standzero.ttt'
 
-        if port is None:
-            port = settings.SIM_PORT
-        if address is None:
-            address = settings.LOCAL_IP
-        VrepEnv.__init__(self, address, port)
-        
         ### Agent settings
         self.active_joints       = ["LLeg", "RLeg"]  # Joints that are going to be used
         self.body_parts_to_track = ['Torso']         # Body parts the position and orientation of which are used as states
@@ -39,9 +34,9 @@ class NaoBalancing2(VrepEnv):
         
         # Agent
         if self.real:
-            self.agent = RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT, self.active_joints)
+            self.agent = nao_rl.agents.RealNAO(self.active_joints)
         else:
-            self.agent = VrepNAO(self.active_joints)
+            self.agent = nao_rl.agents.VrepNAO(self.active_joints)
 
         ### State and action spaces
         self.n_states  = 26 # Size of the state space
@@ -63,12 +58,14 @@ class NaoBalancing2(VrepEnv):
     def initialize(self):
         """
         Connect to V-REP or NAO
+        This method is automatically called when the environment is created
         """
         if self.real:
-            self.agent.connect(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, env=self)
+            self.agent.connect(self)
         else:
             self.connect() # Connect python client to VREP
-            self.agent.connect(env=self)
+            self.agent.connect(self)
+
 
     def _make_observation(self):
         """

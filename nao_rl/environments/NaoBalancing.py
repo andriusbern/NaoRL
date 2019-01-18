@@ -9,29 +9,22 @@ import numpy as np
 from gym import spaces
 
 # Local imports
-from nao_rl.environments import VrepEnv
-from nao_rl.utils import VrepNAO, RealNAO
-from nao_rl import settings
+import nao_rl
+from nao_rl.environments import VrepEnvironment
 
-
-class NaoBalancing(VrepEnv):
+class NaoBalancing(VrepEnvironment):
     """
     The goal of the agent in this environment is to learn how to walk
     """
     def __init__(self, address=None, port=None, naoqi_port=None, real=False):
 
+        super(NaoBalancing, self).__init__(address, port)
 
         # Vrep
-        self.path = settings.SCENES + '/nao_standzero.ttt'
+        self.path = nao_rl.settings.SCENES + '/nao_standzero.ttt'
         self.real = real
         self.n_states = 14
 
-        if port is None:
-            port = settings.SIM_PORT
-        if address is None:
-            address = settings.LOCAL_IP
-        VrepEnv.__init__(self, address, port)
-        
         ### Agent settings
         self.active_joints       = ["LLeg", "RLeg"]  # Joints that are going to be used
         self.body_parts_to_track = ['Torso']         # Body parts the position and orientation of which are used as states
@@ -41,9 +34,9 @@ class NaoBalancing(VrepEnv):
         
         # Agent
         if self.real:
-            self.agent = RealNAO(settings.REAL_NAO_IP, settings.NAO_PORT, self.active_joints)
+            self.agent = nao_rl.agents.RealNAO(self.active_joints)
         else:
-            self.agent = VrepNAO(self.active_joints)
+            self.agent = nao_rl.agents.VrepNAO(self.active_joints)
 
         # Action and state space limits
         self.action_space = spaces.Box(low=np.dot(-1, np.ones(12)),
@@ -69,12 +62,15 @@ class NaoBalancing(VrepEnv):
         self.done = False
 
     def initialize(self):
-        
-        self.connect() # Connect python client to VREP
+        """
+        Connect to V-REP or NAO
+        This method is automatically called when the environment is created
+        """
         if self.real:
-            self.agent.connect(settings.REAL_NAO_IP, settings.REAL_NAO_PORT, env=self)
+            self.agent.connect(self)
         else:
-            self.agent.connect(env=self)
+            self.connect() # Connect python client to VREP
+            self.agent.connect(self)
 
     def _make_observation(self):
         """
@@ -82,7 +78,6 @@ class NaoBalancing(VrepEnv):
         and get current joint angles from motionProxy.
 
         """
-
         joint_angles = self.agent.get_angles()
         orientation = self.agent.get_orientation('Torso')[0:2]
         #collisions = self.agent.check_collisions()

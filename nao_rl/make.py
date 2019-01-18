@@ -9,6 +9,7 @@ and 'make' function for creating and opening the custom environments
 import subprocess, time, os
 import importlib
 from nao_rl import settings
+import nao_rl
 
 
 def destroy_instances():
@@ -74,7 +75,7 @@ def start_naoqi(port):
     time.sleep(5)
 
 
-def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False, **kwargs):
+def make(env_name, sim_port=None, nao_port=None, headless=False, reinit=False, **kwargs):
     """
     Launches VREP, Naoqi at specified ports
         arguments:
@@ -99,8 +100,10 @@ def make(env_name, sim_port=None, nao_port=None, headless=True, reinit=False, **
 
     if headless: time.sleep(1.5)
     else:        time.sleep(5)
+    
+    # Connect the environment to VREP or real NAO
+    env.initialize()
 
-    env.initialize() # Connect python client to the new V-REP instance
     settings.SIM_PORT -= 1
 
     return env

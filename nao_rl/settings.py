@@ -44,14 +44,14 @@ default_parameters = {}
 default_parameters['ppo_NaoTracking']  = {'n_workers'      : CPU_COUNT,       # Number of parallel workers
                                           'max_episodes'   : 6500,            # Max number of episodes before the training stops
                                           'episode_length' : 2000,            # Maximum length of the episode in steps
-                                          'batch_size'     : 4096,            # Batch size of experiences for each training occurence
-                                          'epochs'         : 8,               # Number of epochs for gradient descent/ADAM
-                                          'epsilon'        : .15,             # Clipping value of surogate objective
+                                          'batch_size'     : 250,            # Batch size of experiences for each training occurence
+                                          'epochs'         : 10,               # Number of epochs for gradient descent/ADAM
+                                          'epsilon'        : .2,             # Clipping value of surogate objective
                                           'gamma'          : .99,             # Future reward discount factor
-                                          'actor_layers'   : [256, 256],      # Number of layers and nodes in each layer of the actor network
-                                          'critic_layers'  : [128, 128],      # Number of layers and nodes in each layer of the critic network
-                                          'actor_lr'       : .00001,          # Actor learning rate
-                                          'critic_lr'      : .00005}          # Critic learning rate
+                                          'actor_layers'   : [50, 50],      # Number of layers and nodes in each layer of the actor network
+                                          'critic_layers'  : [50],      # Number of layers and nodes in each layer of the critic network
+                                          'actor_lr'       : .001,          # Actor learning rate
+                                          'critic_lr'      : .005}          # Critic learning rate
     
 default_parameters['ppo_NaoBalancing'] = {'n_workers'      : CPU_COUNT,
                                           'max_episodes'   : 10000,
@@ -68,18 +68,18 @@ default_parameters['ppo_NaoBalancing'] = {'n_workers'      : CPU_COUNT,
 default_parameters['ppo_NaoWalking']   = {}
 
 # Asynchronous Advantage Actor Critic
-default_parameters['a3c_NaoTracking']  = {'n_workers'      : 2,
+default_parameters['a3c_NaoTracking']  = {'n_workers'      : 4,
                                           'max_episodes'   : 5000,
                                           'episode_length' : 500,
-                                          'update_every'   : 8,
+                                          'update_every'   : 20,
                                           'entropy_beta'   : .02, 
                                           'gamma'          : .99,
                                           'actor_layers'   : [50,50],
                                           'critic_layers'  : [50],
-                                          'actor_lr'       : .0001, 
-                                          'critic_lr'      : .0002}
+                                          'actor_lr'       : .0005, 
+                                          'critic_lr'      : .001}
 
-default_parameters['a3c_NaoBalancing2'] = {'n_workers'      : 4,
+default_parameters['a3c_NaoBalancing'] = {'n_workers'      : 4,
                                           'max_episodes'   : 5000,
                                           'episode_length' : 500,
                                           'update_every'   : 25,

@@ -17,7 +17,7 @@ Environment ideas:
 
 def grid_search(alg):
     """
-    Script for trying all combinations of parameters specified
+    Script for trying all permutations/combinations of parameters specified
     """
     # PARAMETERS
     number_of_repeats = 1 # Number of iterations per each combination of params

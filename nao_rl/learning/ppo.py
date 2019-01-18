@@ -6,6 +6,8 @@ import tensorflow as tf
 import numpy as np
 import gym, threading, queue
 import nao_rl, time
+import datetime
+import matplotlib.pyplot as plt
 
 
 class PPO(object):
@@ -25,14 +27,17 @@ class PPO(object):
         self.critic_lr      = critic_lr
         
         # Synchronization
-        self.env_name = env_name
-        self.total_steps = 0
+        self.algorithm      = 'ppo'
+        self.env_name       = env_name
+        self.stop           = False  
+        self.total_steps    = 0
         self.update_counter = 0
-        self.current_episode = 0
+        self.current_episode= 0
         self.running_reward = []
         self.episode_reward = []
-        self.time = None
-        self.verbose = True
+        self.time           = time.time()
+        self.verbose        = True
+        self.date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
         # Threading and events
         self.sess = tf.Session()
@@ -40,13 +45,31 @@ class PPO(object):
         self.queue = queue.Queue()  
         self.update_event = threading.Event()
         self.rollout = threading.Event()
-         
+        self.workers = []
 
+        # Rendering
+        if render == 0:
+            self.render = [True for _ in range(self.n_workers)]
+        if render == 1:
+            self.render = [True for _ in range(self.n_workers)]
+            self.render[0] = False
+        if render == 2:
+            self.render = [False for _ in range(self.n_workers)]
+
+        # Plotting
+        self.plot = plot
+        if self.plot:
+            plt.ion() 
+            plt.figure(1)
+            plt.plot()
+            plt.xlabel('Episode')
+            plt.ylabel('Running reward')
+            plt.title('{} episode reward'.format(self.env_name))
+         
         # Environment parameters
         print "Creating dummy environment to obtain the parameters..."
-        # nao_rl.destroy_instances()
         try:
-            env = nao_rl.make(self.env_name)
+            env = nao_rl.make(self.env_name, headless=True)
         except:
             env = gym.make(self.env_name)
         self.n_actions  = env.action_space.shape[0]
@@ -55,6 +78,7 @@ class PPO(object):
         #env.disconnect()
         nao_rl.destroy_instances()
         del env
+
 
         ##############
         ### Network ##
@@ -107,8 +131,8 @@ class PPO(object):
             sigma = tf.layers.dense(hidden_layer, self.n_actions, tf.nn.softplus, trainable=trainable)
             norm_dist = tf.distributions.Normal(loc=mu, scale=sigma, name='policy')
 
-        params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
-        return norm_dist, params
+        parameterss = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+        return norm_dist, parameterss
 
 
     def update(self):
@@ -162,11 +186,12 @@ class PPO(object):
         """
         self.workers = []
         for i in range(self.n_workers):
+            print "Creating worker #{}...".format(i+1)
             try:
-                env = nao_rl.make(self.env_name, headless=True)
+                env = nao_rl.make(self.env_name, headless=self.render[i])
             except:
                 env = gym.make(self.env_name)
-            worker = Worker(env, self, i)
+            worker = Worker(env, self, 'Worker_{}'.format(i+1))
             self.workers.append(worker)
 
     def train(self):
@@ -180,17 +205,27 @@ class PPO(object):
                 t = threading.Thread(target=worker.work, args=())
                 t.start()                 
                 threads.append(t)
+            self.live_plot()
             threads.append(threading.Thread(target=self.update,))
             threads[-1].start()
             self.time = time.time()
             self.tf_coordinator.join(threads, ignore_live_threads=True, stop_grace_period_secs=5)
-            #self.tf_coordinator.wait_for_stop()
         except KeyboardInterrupt:
             print "Training stopped..."
-            # self.tf_coordinator.request_stop()
+            self.stop = True
+            self.tf_coordinator.request_stop()
             # #self.tf_coordinator.wait_for_stop()
             # self.close_session()
+            
 
+    def save(self):
+        """
+        Save model to a .cpkt file in '/trained_models' directory
+        """
+        model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, self.env_name, self.algorithm, self.date)
+        saver = tf.train.Saver(max_to_keep=20, keep_checkpoint_every_n_hours=1)
+        saver.save(self.sess, model_path)
+        print 'Trained model saved at {}'.format(model_path)
         
     def close_session(self):
         for worker in self.workers:
@@ -204,9 +239,40 @@ class PPO(object):
               'Environment: {}\n'.format(self.env_name),\
               'Parameters: {}\n'.format(locals())
 
+    def live_plot(self):
+        """
+        Continuously plot the current running reward
+        Must be run on the main thread
+        """
+        plot_count = 0
+        while self.current_episode < self.max_episodes - 1 and not self.stop:
+            if self.current_episode > 1 and self.current_episode > plot_count:
+                plt.figure(1)
+                plt.plot([plot_count, plot_count+1], self.running_reward[-2:], 'r')
+                plt.plot([plot_count, plot_count+1], self.episode_reward[-2:], 'k', alpha=.2)
+                plt.show()
+                plt.pause(.0001)
+                plot_count += 1
+
+        plt.close()
+
+    def plot_rewards(self):
+        """
+        Plot the whole reward history
+        """
+        plt.figure(2)
+        plt.plot()
+        plt.xlabel('Episode')
+        plt.ylabel('Running reward')
+        plt.title('{} episode reward'.format(self.env_name))
+        plt.plot(self.running_reward)
+        plt.plot(self.episode_reward)
+        plt.show()
+
+    
 class Worker(object):
     def __init__(self, env, global_ppo, worker_name):
-        self.worker_name = env.port
+        self.worker_name = worker_name
         self.env = env
         self.trainer = global_ppo
 
@@ -269,7 +335,7 @@ class Worker(object):
     def status(self, episode_steps):
         print('{0:.1f}%'.format(float(self.trainer.current_episode)/float(self.trainer.max_episodes)*100),
                 self.trainer.current_episode,
-            ' | Worker %i' % self.worker_name,
+            ' | Worker'.format(self.worker_name),
             ' | Ep reward: %.2f' % self.trainer.episode_reward[-1],
             ' | Discounted reward: %.2f' % self.trainer.running_reward[-1],
             ' | S: {}'. format(self.trainer.total_steps),

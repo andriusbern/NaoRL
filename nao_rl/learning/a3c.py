@@ -31,6 +31,7 @@ class A3C(object):
         self.critic_lr      = critic_lr
         
         # Synchronization
+        self.algorithm       = 'a3c'
         self.env_name        = env_name
         self.stop            = False
         self.total_steps     = 0
@@ -40,8 +41,8 @@ class A3C(object):
         self.episode_reward  = []
         self.time            = None
         self.verbose         = True
+        self.date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         
-
         # Rendering
         if render == 0:
             self.render = [True for _ in range(self.n_workers)]
@@ -71,7 +72,7 @@ class A3C(object):
         # Environment parameters
         print "Creating dummy environment to obtain the parameters..."
         try:
-            env = nao_rl.make(env_name)
+            env = nao_rl.make(env_name, headless=True)
         except:
             env = gym.make(env_name)
         self.n_states  = env.observation_space.shape[0]
@@ -88,7 +89,7 @@ class A3C(object):
         Create global network, workers and their networks, optimizers
         """
         with tf.device("/cpu:0"):
-            self.global_net = ActorCriticNet('Global', self)
+            self.global_net = ActorCriticNet('Global_net', self)
             self.create_workers()
             self.optimizer_actor  = tf.train.RMSPropOptimizer(self.actor_lr, name='RMSPropA')
             self.optimizer_critic = tf.train.RMSPropOptimizer(self.critic_lr, name='RMSPropC')
@@ -104,7 +105,7 @@ class A3C(object):
                 env = nao_rl.make(self.env_name, headless=self.render[i])
             except:
                 env = gym.make(self.env_name)
-            worker = Worker(env, self)
+            worker = Worker(env, 'Worker_{}'.format(i+1), self)
             self.workers.append(worker)
 
 
@@ -130,9 +131,7 @@ class A3C(object):
 
             
     def save(self):
-        date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        algorithm = 'a3c'
-        model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, self.env_name, algorithm, date)
+        model_path = '{}/{}_{}_{}.cpkt'.format(nao_rl.settings.TRAINED_MODELS, self.env_name, self.algorithm, self.date)
         saver = tf.train.Saver(max_to_keep=20, keep_checkpoint_every_n_hours=1)
         saver.save(self.sess, model_path)
         print 'Trained model saved at {}'.format(model_path)
@@ -184,7 +183,7 @@ class ActorCriticNet(object):
         self.model = model
 
         # Global parameters
-        if scope == 'Global':  
+        if scope == 'Global_net':  
             with tf.variable_scope(scope):
                 self.state_input = tf.placeholder(tf.float32, [None, model.n_states], 'state_input')
                 self._build_net()
@@ -281,10 +280,10 @@ class ActorCriticNet(object):
 
 
 class Worker(object):
-    def __init__(self, env, globalAC):
+    def __init__(self, env, name, globalAC):
 
         self.env = env
-        self.name = env.port
+        self.name = name
         self.model = globalAC
         self.local_net = ActorCriticNet(str(self.name), globalAC)
 

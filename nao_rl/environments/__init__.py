@@ -1,5 +1,4 @@
-from base import VrepEnv
+from VrepEnvironment import VrepEnvironment
 from NaoTracking import NaoTracking
 from NaoWalking import NaoWalking
-from NaoNavigation import NaoNavigation
 from NaoBalancing import NaoBalancing
