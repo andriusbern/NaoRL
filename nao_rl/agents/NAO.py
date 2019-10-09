@@ -26,6 +26,7 @@ class NAO(object):
             'RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch', 'RAnklePitch', 'RAnkleRoll',
             # "RArm"
             'RShoulderPitch', 'RShoulderRoll', 'RElbowYaw', 'RElbowRoll', 'RWristYaw'
+            # "RHand"
             ]
 
         # A dictionary for quickly getting the names of joints in each limb
@@ -59,7 +60,7 @@ class NAO(object):
                 active_joints += self.limbs[name] 
             except KeyError:
                 if name in self.joint_names:
-                    active_joints += name
+                    active_joints.append(name)
                 else:
                     print "Invalid name of joint '{}'".format(name)
 
@@ -75,7 +76,8 @@ class NAO(object):
         """
 
         if movement_mode == 'torque':
-            self.joint_torque = np.clip(self.joint_torque + (action * speed / 400),
+            scaled_action = (action * speed / 400)
+            self.joint_torque = np.clip(self.joint_torque + scaled_action,
                                           -self.max_torque,
                                            self.max_torque)
             
@@ -84,22 +86,24 @@ class NAO(object):
                                            self.max_joint_velocity)
 
             self.joint_position += self.joint_angular_v
-            self.move_joints(self.joint_position)
 
         elif movement_mode == 'velocity':
-            self.joint_angular_v = np.clip(self.joint_angular_v + (action * speed / 200),
+            scaled_action = (action * speed / 200)
+            self.joint_angular_v = np.clip(self.joint_angular_v + scaled_action,
                                           -self.max_joint_velocity,
                                            self.max_joint_velocity)
 
             self.joint_position += self.joint_angular_v
-            self.move_joints(self.joint_position)
 
         elif movement_mode == 'position':
-            self.joint_position += action / 50 * speed 
-            self.move_joints(self.joint_position)
+            scaled_action = action / 50 * speed 
+            self.joint_position += scaled_action
+            
         else:
             print "Invalid mode for actions."
         
+        
+        self.move_joints(self.joint_position)
 
     def visualize(self, motors=None):
         pass

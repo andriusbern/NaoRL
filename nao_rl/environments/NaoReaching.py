@@ -12,40 +12,42 @@ from gym import spaces, Env
 from nao_rl.environments import VrepEnvironment
 
 import nao_rl
-import random
 
 
-class NaoTracking(VrepEnvironment):
+class NaoReaching(VrepEnvironment):
     """ 
     Environment where the goal is to track the ball by moving two head motors.
     The ball moves randomly within a specified area and the reward is proportional to the distance from
     the center of the ball to the center of NAO's vision sensor.
     """
     def __init__(self, address=None, port=None, naoqi_port=None, use_real_agent=True):
+
         VrepEnvironment.__init__(self, address, port)
         # super(NaoTracking, self).__init__(address, port)
 
-        self.path = nao_rl.settings.SCENES + '/nao_ball.ttt'
+        self.path = nao_rl.settings.SCENES + '/nao_reach.ttt'
         self.real = use_real_agent
 
         # Movement and actions
-        self.active_joints       = ['Head']
-        self.body_parts_to_track = ['Head']
-        self.movement_mode       = 'position'
-        self.joint_speed         = 2
-        self.fps                 = 15.
-        self.collisions          = None
+        self.active_joints       = ['RShoulderPitch', 'RShoulderRoll', 'RElbowYaw', 'RElbowRoll']
+        self.body_parts_to_track = ['Torso']
+        self.movement_mode       = 'velocity'
+        self.collisions          = ['NAO_BALL', 'NAO_TABLE']
+        self.joint_speed         = 5
+        self.fps                 = 30.
         
         if self.real:
             self.agent = nao_rl.agents.RealNAO(self.active_joints)
         else:
             self.agent = nao_rl.agents.VrepNAO(self.active_joints)
         
+        self.agent.max_joint_velocity = .1
+        
         # State and action spaces
-        self.n_states  = 4
-        self.n_actions = 2
+        self.n_states  = 10
+        self.n_actions = 4
         self.state     = np.zeros(self.n_states)
-        self.done      = True
+        self.done      = False
         
        # Action and state space limits
         self.action_space      = spaces.Box(low=np.array([-1] * self.n_actions),
@@ -56,9 +58,7 @@ class NaoTracking(VrepEnvironment):
 
         # Additional parameters
         self.ball = nao_rl.utils.Ball(name='Sphere1')  # Ball object (defined in ../utils/misc.py)
-        self.ball_color = 'red'
-        self.show_display = True  # Display the processed image in a cv2 window (object tracking)
-
+        self.show_display = False  # Display the processed image in a cv2 window (object tracking)
 
     def initialize(self):
         """
@@ -78,18 +78,18 @@ class NaoTracking(VrepEnvironment):
                        velocities of the head motors]
         """
         image = self.agent.get_image()
-        _, center = nao_rl.utils.ImageProcessor.ball_tracking(image, self.show_display, self.ball_color)
-        velocities = self.agent.joint_angular_v / self.agent.max_joint_velocity
+        _, center  = nao_rl.utils.ImageProcessor.ball_tracking(image, self.show_display)
+        positions  = self.agent.get_angles()
+        velocities = self.agent.joint_angular_v / self.agent.max_joint_velocity # Normalize
     
         if center != None:
             resolution = np.shape(image)
             coords = [float(center[0])/float(resolution[1]), float(center[1])/float(resolution[0])]
-            self.state = coords + list(velocities)
         else:
-            self.done = True
-            self.state = [0, 0, velocities[0], velocities[1]]
-
-    
+            coords = [0, 0]
+        
+        self.state = np.array(coords + list(positions) + list(velocities))
+            
 
     def _make_action(self, action):
         """
@@ -103,18 +103,20 @@ class NaoTracking(VrepEnvironment):
         """
         self._make_action(action)
         if not self.real:
-            self.ball.random_motion()
             self.step_simulation()
         self._make_observation()
         
-        (center_x, center_y, _, _) = self.state
+        # Base reward for each step
+        reward = -.1 
 
-        # Euclidean distance from the center of the ball
-        euclidean_distance = np.sqrt((0.5 - center_x)**2 + (0.5 - center_y)**2)
-        reward = .3 - euclidean_distance
-        if euclidean_distance < .1:
-            reward += .1
-
+        # Check collisions
+        if not self.real:
+            if self.agent.get_collision('NAO_BALL'): # Reward for touching the ball
+                self.done = True
+                reward += 100
+            if self.agent.get_collision('NAO_TABLE'): # Penalty for touching the table
+                self.done = True
+                reward -= 10
         
         # Set the length of one step
         if self.real:
@@ -122,19 +124,10 @@ class NaoTracking(VrepEnvironment):
 
         return np.array(self.state), reward, self.done, {}
 
-    def f(self):
-        action = [0, 0]
-        if self.state[0] > .5: action[0] = -.5 + (random.random()-0.5)*.2
-        if self.state[0] < .5: action[0] = .5 + (random.random()-0.5)*.2
-        if self.state[1] > .5: action[1] = .5 + (random.random()-0.5)*.2
-        if self.state[1] < .5: action[1] = -.5 + (random.random()-0.5)*.2
-        return action
-        
     def reset(self, close=False):
         """
         Reset the environment to default state and return the first observation
         """ 
-
         self.done = False
         if not self.real:
             self.stop_simulation()
@@ -153,24 +146,35 @@ class NaoTracking(VrepEnvironment):
         Run the test simulation without any learning algorithm for debugging purposes
         """
         fps = 30.
+        data = [[] for i in range(4)]
         try:
             t = 0
             while t < 30:
                 self.done = False
                 self.reset()
-                
+                ep_reward = 0
                 steps = 0
-                while not self.done: 
+                while not self.done and steps < 200: 
                     action = self.action_space.sample()
+                    # action = np.zeros(4)
                     state, reward, self.done, _ = self.step(action)
                     time.sleep(1/fps)
                     steps += 1
-                    print(reward)
-                    
+                    ep_reward += reward
+                    # print(reward)
+                    for i in range(2,6):
+                        data[i-2].append(state[i])
                 print('Steps: {}'.format(steps))
                 t += 1
+                print('Episode reward: {}'.format(ep_reward))
         except KeyboardInterrupt:
             pass
+            import matplotlib.pyplot as plt
+            for i in range(4):
+                plt.plot(data[i])
+            
+            plt.legend(self.active_joints)
+            plt.show()
 
 if __name__ == "__main__":
 
@@ -178,6 +182,6 @@ if __name__ == "__main__":
     If called as a script this will initialize the scene in an open vrep instance 
     """
     import nao_rl
-    env = nao_rl.make('NaoTracking', headless=False, show_display=True)
+    env = nao_rl.make('NaoReaching', headless=False, show_display=True)
     env.run()
     nao_rl.destroy_instances()

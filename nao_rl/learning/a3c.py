@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 
 
 class A3C(object):
-    def __init__(self, env_name, render, plot, n_workers=8, max_episodes=5000, episode_length=500,
-                 update_every=10, entropy_beta=.02, gamma=.99,
-                 actor_layers=[250,250], critic_layers=[250],
-                 actor_lr=.0001, critic_lr=.0001):
+    def __init__(self, env_name, render, plot, n_workers=1, max_episodes=10000, episode_length=500,
+                 update_every=10, entropy_beta=.005, gamma=.99,
+                 actor_layers=[500,300], critic_layers=[500, 300],
+                 actor_lr=.00005, critic_lr=.0001):
 
         # Training parameters
         self.gamma          = gamma
@@ -291,17 +291,22 @@ class Worker(object):
 
         total_step = 1
         buffer_states, buffer_actions, buffer_rewards = [], [], []
-        while not self.model.stop and self.model.current_episode < self.model.max_episodes:
+        while not self.model.tf_coordinator.should_stop() and self.model.current_episode < self.model.max_episodes:
             state = self.env.reset()
             episode_reward = 0
             episode_steps = 0
             while True:
                 action = self.local_net.action(state)
                 state_, reward, done, info = self.env.step(action)
+                if reward <= -100: reward=-2
                 episode_reward += reward
                 buffer_states.append(state)
                 buffer_actions.append(action)
                 buffer_rewards.append(reward)
+
+                # Max episode length
+                if episode_steps > self.model.episode_length:
+                    done = True
 
                 if total_step % self.model.update_every == 0 or done:   # update global and assign to local net
                     if done:
@@ -331,7 +336,6 @@ class Worker(object):
                 total_step += 1
                 episode_steps += 1
                 if done:
-                    # achieve = '| Achieve' if self.env.unwrapped.hull.position[0] >= 88 else '| -------'
                     average_reward = episode_reward / float(episode_steps)
                     self.model.episode_reward.append(episode_reward)
                     if len(self.model.running_reward) == 0:  # record running episode reward

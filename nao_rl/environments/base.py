@@ -8,7 +8,7 @@ import gym
 from nao_rl.utils.vrep import vrep
 
 
-class VrepEnvironment(gym.Env):
+class VrepEnv(gym.Env):
     """ 
     Base class for all the Vrep gym environments
     Contains all the basic functions for:
@@ -26,7 +26,7 @@ class VrepEnvironment(gym.Env):
         self.running        = False
         self.scene_loaded   = False
         self.headless       = False
-        self.start_stop_delay = .3
+        self.start_stop_delay = .15
 
 
         self.modes = {'blocking'  : vrep.simx_opmode_blocking,  # Waits until the respose from vrep remote API is sent back
@@ -172,7 +172,6 @@ class VrepEnvironment(gym.Env):
 
         return handles
 
-
     def set_joint_position(self, handle, angle):
         """
         Set a simulated joint identified by a [handle] to a specific [angle]
@@ -186,10 +185,10 @@ class VrepEnvironment(gym.Env):
         """
         Pauses communication and sends all the joint angle changes in one packet
         """
-        # vrep.simxPauseCommunication(self.client_id, True)
+        vrep.simxPauseCommunication(self.client_id, True)
         for i, handle in enumerate(handles):
             self.set_joint_position(handle, angles[i])
-        # vrep.simxPauseCommunication(self.client_id, False)
+        vrep.simxPauseCommunication(self.client_id, False)
 
 
     def get_joint_angle(self, handle, mode='blocking'):

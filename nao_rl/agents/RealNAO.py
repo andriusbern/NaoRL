@@ -1,6 +1,7 @@
 from nao_rl.agents import NAO
 import numpy as np
 import nao_rl
+import time 
 
 class RealNAO(NAO):
     """
@@ -29,7 +30,7 @@ class RealNAO(NAO):
         self.memory_proxy = None
 
 
-    def connect(self, env, resolution=0, colorSpace=11, fps=30):
+    def connect(self, resolution=0, colorSpace=11, fps=30):
         """
         Connect to NaoQI Motion, Posture and Vision proxies
         """
@@ -54,20 +55,27 @@ class RealNAO(NAO):
     
     def reset_position(self):
         self.move_joints(self.initial_angles)
+        self.joint_position  = self.initial_angles 
+        self.joint_angular_v = np.zeros(len(self.active_joints))  
+        self.joint_torque    = np.zeros(len(self.active_joints))  
+        time.sleep(.5)
 
 
-    def move_joints(self, angles, blocking=False):
+    def set_joints(self, angles, blocking=False):
         """
         Moves the joints in a list to specific positions by an increment
             - [joints] and [angles] lists must be of the same length
         """
-        current = self.get_angles()
-        angles = list(angles)
+        # current = self.get_angles()
+        # Convert to float
+        float_angles = []
+        for angle in angles:
+            float_angles.append(float(angle))
         
         if not blocking:
-            self.motion_proxy.post.changeAngles(self.active_joints, angles, self.joint_speed)
+            self.motion_proxy.post.changeAngles(self.active_joints, float_angles, self.joint_speed)
         else:
-            self.motion_proxy.changeAngles(self.active_joints, angles, self.joint_speed)
+            self.motion_proxy.changeAngles(self.active_joints, float_angles, self.joint_speed)
 
 
     def get_angles(self, joints=None, use_sensors=True):
@@ -107,14 +115,20 @@ class RealNAO(NAO):
     ####################
     # Additional methods
 
-    def set_joints(self, angles, speed=.8, blocking=False, sync=False):
+    def move_joints(self, angles, speed=.8, blocking=False, sync=False):
         """
         Sets the joints to specific positions
         """
+        # Convert to float
+        float_angles = []
+        for angle in angles:
+            float_angles.append(float(angle))
+        
+
         if not blocking:
-            self.motion_proxy.post.setAngles(self.active_joints, angles, speed)
+            self.motion_proxy.post.setAngles(self.active_joints, float_angles, speed)
         else:
-            self.motion_proxy.setAngles(self.active_joints, angles, speed)
+            self.motion_proxy.setAngles(self.active_joints, float_angles, speed)
 
 
     def move_to(self, x, y, theta, blocking=False):

@@ -16,7 +16,7 @@ class NaoBalancing(VrepEnvironment):
     """
     The goal of the agent in this environment is to learn how to walk
     """
-    def __init__(self, address=None, port=None, naoqi_port=None, real=False):
+    def __init__(self, address=None, port=None, naoqi_port=None, real=True):
 
         super(NaoBalancing, self).__init__(address, port)
 
@@ -31,6 +31,7 @@ class NaoBalancing(VrepEnvironment):
         self.movement_mode       = 'position'        # 'position' / 'velocity' / 'torque'
         self.joint_speed         = 1.25
         self.fps                 = 30.
+        self.collisions          = None
         
         # Agent
         if self.real:
@@ -51,7 +52,6 @@ class NaoBalancing(VrepEnvironment):
         #    - Roll and pitch of the convex hull of the body of the whole robot [2]
         #    - Collision between the floor and each foot [2]
         self.state = np.zeros(self.n_states)
-        self.previous_feet_position = [0, 0]
         self.previous_state = np.zeros(self.n_states)
         self.previous_orientation = 0
 
@@ -79,7 +79,8 @@ class NaoBalancing(VrepEnvironment):
 
         """
         joint_angles = self.agent.get_angles()
-        orientation = self.agent.get_orientation('Torso')[0:2]
+        # orientation = self.agent.get_orientation('Torso')[0:2]
+        orientation = [0, 0]
         #collisions = self.agent.check_collisions()
         self.state = np.hstack([joint_angles, orientation])           # Angles of each joint
 
@@ -97,10 +98,11 @@ class NaoBalancing(VrepEnvironment):
         Step the vrep simulation by one frame, make actions and observations and calculate the resulting 
         rewards
         """
-
+        
         previous_state = self.state
-        self._make_action(action) 
-        self.step_simulation()
+        self._make_action(action)
+        if not self.real:
+            self.step_simulation()
         self._make_observation() # Update state
         
         ###################
@@ -135,12 +137,15 @@ class NaoBalancing(VrepEnvironment):
         """
         Reset the environment to default state and return the first observation
         """ 
-        self.stop_simulation()
+        if not self.real:
+            self.stop_simulation()    
+            self.start_simulation()
+            self.step_simulation()
+
         self.agent.reset_position()
-        self.start_simulation()
         self.done = False
         self.state = np.zeros(self.n_states)
-        self.step_simulation()
+        
         self._make_observation()
         return np.array(self.state)
 

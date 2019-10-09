@@ -24,7 +24,7 @@ class VrepNAO(NAO):
         self.initial_nao_position = None
         self.initial_nao_orientation = None
 
-        self.position = np.zeros(len(self.active_joints))
+        self.position    = np.zeros(len(self.active_joints))
         self.orientation = np.zeros(len(self.active_joints))
 
         self.streaming = streaming_mode
@@ -32,7 +32,9 @@ class VrepNAO(NAO):
         # Body part position tracking and collisions
 
         self.body_parts_to_track  = [] # List of tracked body parts
-        self.feet_collision_names = ['Collision', 'Collision0'] # Right / left foot
+        self.collision_names = ['Collision', 'Collision0',
+                                'NAO_BALL' , 'NAO_TABLE'] # Right / left foot
+        self.collision_handles    = []
 
 
     def connect(self, env, use_camera=False):
@@ -55,8 +57,14 @@ class VrepNAO(NAO):
         self.camera_handle = self.env.get_handle(self.camera_name)
         
         # Collect initial positional parameters
-        self.initial_nao_position = self.env.get_object_position(self.handle)
+        self.joint_position           = self.get_angles()
+        self.initial_angles           = np.copy(self.joint_position)
+        self.initial_nao_position     = self.env.get_object_position(self.handle)
         self.initial_nao_orientation  = self.env.get_object_orientation(self.handle)
+
+        if self.env.collisions is not None:
+            self.collision_handles = dict(zip(self.env.collisions, 
+                                             [self.env.get_collision_handle(x) for x in self.env.collisions]))
 
         # Streaming of angles, orientations and positions of objects every simulation frame
         self.body_parts_to_track = self.env.body_parts_to_track
@@ -71,16 +79,20 @@ class VrepNAO(NAO):
         """
         Reinitializes the body position
         """
-        self.joint_position  = np.zeros(len(self.active_joints))  
+        self.initial_angles = self.get_angles()
+        self.joint_position  = self.initial_angles 
         self.joint_angular_v = np.zeros(len(self.active_joints))  
         self.joint_torque    = np.zeros(len(self.active_joints))  
 
-    def move_joints(self, angles):
+    def move_joints(self, angles=None):
         """
         Override the function of NAO class to only operate in VREP
         """
+        if angles is None:
+            angles = self.joint_position
+
         # self.joint_position += np.squeeze(angles)
-        self.env.set_joint_position_multiple(self.joint_handles, self.joint_position)
+        self.env.set_joint_position_multiple(self.joint_handles, angles)
 
     
     def get_angles(self):
@@ -191,6 +203,10 @@ class VrepNAO(NAO):
             self.env.get_object_position(self.part_handles[body_part], 'streaming')
             self.env.get_object_orientation(self.part_handles[body_part], 'streaming')
 
+        if self.env.collisions is not None:
+            for x in self.env.collisions:
+                self.env.read_collision(self.collision_handles[x], 'streaming')
+
         if use_camera:
             self.env.get_vision_image(self.camera_handle, 'streaming')
 
@@ -207,12 +223,13 @@ class VrepNAO(NAO):
         else:
             return self.env.get_object_position(part)          
 
-    def check_collisions(self):
+
+    def get_collision(self, collision_name):
         """
-        Return a list of boolean values that indicate the collision of the feet with the floor
-        """ 
-        right = self.env.read_collision(self.feet_collision_names[0])
-        left  = self.env.read_collision(self.feet_collision_names[1])
-
-        return [right, left]
-
+        Gets a collision status given a collision name
+        """
+        collision_handle = self.collision_handles[collision_name]
+        if self.streaming:
+            return self.env.read_collision(collision_handle, 'buffer')
+        else:
+            return self.env.read_collision(collision_handle, 'blocking')

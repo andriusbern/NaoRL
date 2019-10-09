@@ -81,7 +81,8 @@ else:
 packages = ['numpy',
             'tensorflow',
             'gym',
-            'opencv-python']
+            'opencv-python',
+            'matplotlib']
 
 print SEPARATOR, SEPARATOR
 print "Paths added successfully..."
@@ -93,7 +94,7 @@ setup(
     name='nao_rl',
     description='VREP RL package for NAO robot.',
     long_description='',
-    version='0.1',
+    version='0.9',
     packages=['nao_rl'],
     scripts=[],
     author='Andrius Bernatavicius',

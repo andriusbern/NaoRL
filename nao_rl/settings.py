@@ -74,8 +74,8 @@ default_parameters['a3c_NaoTracking']  = {'n_workers'      : 4,
                                           'update_every'   : 20,
                                           'entropy_beta'   : .02, 
                                           'gamma'          : .99,
-                                          'actor_layers'   : [50,50],
-                                          'critic_layers'  : [50],
+                                          'actor_layers'   : [50, 50],
+                                          'critic_layers'  : [50, 50],
                                           'actor_lr'       : .0005, 
                                           'critic_lr'      : .001}
 
@@ -100,3 +100,14 @@ default_parameters['a3c_NaoWalking']   = {'n_workers'      : 2,
                                           'critic_layers'  : [50],
                                           'actor_lr'       : .0001, 
                                           'critic_lr'      : .0002}
+
+default_parameters['a3c_NaoReaching']  = {'n_workers'      : 4,
+                                          'max_episodes'   : 5000,
+                                          'episode_length' : 200,
+                                          'update_every'   : 20,
+                                          'entropy_beta'   : .02, 
+                                          'gamma'          : .999,
+                                          'actor_layers'   : [200, 200],
+                                          'critic_layers'  : [200, 200],
+                                          'actor_lr'       : .0005, 
+                                          'critic_lr'      : .001}

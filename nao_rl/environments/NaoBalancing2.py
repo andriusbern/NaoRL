@@ -11,15 +11,15 @@ from gym import spaces
 # Local imports
 
 import nao_rl
+from nao_rl.environments import VrepEnvironment
 
-
-class NaoBalancing2(nao_rl.environments.VrepEnvironment):
+class NaoBalancing2(VrepEnvironment):
     """
     The agent's goal in this environment is to learn to keep an upright position
     """
     def __init__(self, address=None, port=None, naoqi_port=None, use_real_agent=False):
 
-        super(NaoBalancing2, self).__init__(address, port)
+        VrepEnvironment.__init__(self, address, port)
 
         # Vrep
         self.real = use_real_agent
@@ -28,9 +28,10 @@ class NaoBalancing2(nao_rl.environments.VrepEnvironment):
         ### Agent settings
         self.active_joints       = ["LLeg", "RLeg"]  # Joints that are going to be used
         self.body_parts_to_track = ['Torso']         # Body parts the position and orientation of which are used as states
-        self.movement_mode       = 'velocity'        # 'position' / 'velocity' / 'torque'
+        self.movement_mode       = 'torque'        # 'position' / 'velocity' / 'torque'
         self.joint_speed         = .5
         self.fps                 = 30.
+        self.collisions = None
         
         # Agent
         if self.real:
@@ -158,9 +159,12 @@ class NaoBalancing2(nao_rl.environments.VrepEnvironment):
                     state, reward, self.done, _ = self.step(action)
                     time.sleep(1/fps)
 
-                    data[0].append(self.state[0])
-                    data[1].append(self.state[12])
-                    data[2].append(self.agent.joint_torque[0]/self.agent.max_torque)
+                    for i in range(6):
+                        data[i].append(self.state[i])
+                    
+                    # data[0].append(self.state[0])
+                    # data[1].append(self.state[12])
+                    # data[2].append(self.agent.joint_torque[0]/self.agent.max_torque)
 
                     # for i in range(12):
                     #     data[i].append(state[i])
@@ -169,8 +173,9 @@ class NaoBalancing2(nao_rl.environments.VrepEnvironment):
                 t += 1
         except KeyboardInterrupt:
             import matplotlib.pyplot as plt
-            for x in range(12):
+            for x in range(6):
                 plt.plot(data[x])
+            plt.legend(self.agent.active_joints[0:6])
             plt.show()
             
 

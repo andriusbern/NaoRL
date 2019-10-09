@@ -31,8 +31,8 @@ class RestoredModel(object):
         tf.train
         graph = tf.get_default_graph()
         if alg == 'a3c':
-            self.state_input   = graph.get_tensor_by_name('Worker_1/state_input:0')
-            self.choose_action = graph.get_tensor_by_name('Worker_1/choose_action/choose_action:0')
+            self.state_input   = graph.get_tensor_by_name('W_0/state_input:0')
+            self.choose_action = graph.get_tensor_by_name('W_0/choose_action/choose_action:0')
         elif alg == 'ppo':
             self.state_input   = graph.get_tensor_by_name("state_input:0")
             self.choose_action = graph.get_tensor_by_name("choose_action:0")
@@ -43,6 +43,7 @@ class RestoredModel(object):
         Choose an action based on the state using the loaded policy
         """
         state = state[np.newaxis, :]
+        print state
 
         return self.sess.run(self.choose_action, {self.state_input: state})[0]
 
@@ -109,9 +110,8 @@ if __name__ == "__main__":
     # name = 'NaoTracking_a3c_2019-01-11_12:01:41.cpkt'
 
     # Create environment
-    env = nao_rl.make(env_name)
+    env = nao_rl.make(env_name, headless=False)
     fps = 30.
-
     # Test Loop
     n = 0
     while n < n_attempts:
@@ -121,8 +121,10 @@ if __name__ == "__main__":
         state = env.reset()
         # Test loop
         while not done:
+            raw_input('ENTER TO CONTINUE...')
             action = np.clip(model.action(state), env.action_space.low, env.action_space.high)
-            state, reward, done, _ = env.step(action)
+            # action = env.f()
+            state, reward, done, _ = env.step(np.array(action))
             total_reward += reward
             steps += 1
             time.sleep(1/fps)

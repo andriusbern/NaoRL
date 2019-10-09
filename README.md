@@ -1,19 +1,17 @@
-# nao_rl  -  Reinforcement Learning Package For *NAO* Robot.
+# nao_rl  -  Reinforcement Learning Package for the *Nao* Robot.
 This python package integrates *V-REP* robot simulation software, base libraries for NAO robot control along with reinforcement learning algorithms for solving custom or any *OpenAI-gym*-based learning environments.
 
 ## Features:
-1. State-of-the-art policy gradient RL algorithms for training the agent - Proximal Policy Optimization (PPO) and Asynchronous Advantage Actor-Critic (A3C) both of which are parallelized, scale to any number of workers and drastically increase the training speed.
+1. Parallelized Proximal Policy Optimization (PPO) and Asynchronous Advantage Actor-Critic (A3C) for training agents.
 2. Custom OpenAI-gym-based API for controlling *V-REP* that makes it easy to create new learning tasks and environments (50 - 100 LOC)
-3. Reinforcement learning can be done both in simulation or using the real robot.
-4. Policies learned in simulated environments can be directly tested on the real NAO robot and vice-versa.
-5. Grid search scripts for hyperparameter optimization.
-6. Custom learning environments for the NAO robot:
+3. Learned policies can be transferred back to the real robot, or learning can be done online (not recommended).
+5. Custom learning environments for the NAO robot:
    
 
-  **1. Balancing / Learning a bipedal gait**         | **2. Object tracking**
-:-------------------------:|:-------------------------:
- <img src="assets/ezgif.com-gif-maker.gif" width="600">   | <img src="assets/untitled.gif" width="500">
- The goal is to keep an upright position without falling or learn how to move forward | The goal is to keep the object within the visual field by moving the head motors. 
+  |                      **1. Balancing / Learning a bipedal gait**                      |                              **2. Object tracking**                               |
+  | :----------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------: |
+  |                <img src="assets/ezgif.com-gif-maker.gif" width="600">                |                    <img src="assets/untitled.gif" width="500">                    |
+  | The goal is to keep an upright position without falling or learn how to move forward | The goal is to keep the object within the visual field by moving the head motors. |
 
 
 
@@ -52,7 +50,6 @@ python setup.py install
 ```
 You will be prompted to enter the path to your V-Rep installation directory
 
-**4. Launch the virtual NAO and VREP.**
 
 # Testing the environments
 To try the environments out (V-Rep will be launched with the appropriate scene and agent loaded, actions will be sampled randomly):
@@ -68,21 +65,22 @@ Where 'env_name' corresponds to one of the following available environments:
 
 # Training
 
-To train the agents in these environments you can use build-in RL algorithms:
+To train the agents in these environments you can use built-in RL algorithms:
 
 ```
 python train.py NaoTracking a3c 0
 ```
-<img src="assets/live_plot.gif"> 
 
-Live plotting of training results, sped up 40x (use flag '-p' to enable live plotting).
+| ![](assets/live_plot.gif) | 
+|:--:| 
+|*Live plotting of training results.* *Sped up by 40x (enabled with flag '-p').*|
 
-Positional arguments:
-1. Environment name: 
+### Positional arguments:
+1. Environment name:      name one of **nao_rl** or **gym** environments
 2. Training algorithm: 
    1. *--a3c*    - Asynchronous Advantage Actor-Critic or 
    2. *--ppo*    - Proximal Policy Optimization
-3. Rendering mode : 
+3. Rendering mode:
    1. [0] - Do not render
    2. [1] - Render the first worker
    3. [2] - Render all workers
